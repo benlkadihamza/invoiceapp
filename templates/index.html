@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Factures</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Générateur de Factures</h1>
+        </header>
+
+        <form id="invoice-form">
+            <section class="form-section">
+                <h2>Informations de la facture</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="invoice_num">N° Facture</label>
+                        <input type="text" id="invoice_num" name="invoice_num" value="001" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Client</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="client_name">Nom du client</label>
+                        <input type="text" id="client_name" name="client_name" placeholder="M. lwafi" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="client_address">Adresse du client</label>
+                        <input type="text" id="client_address" name="client_address" placeholder="Adresse...">
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Articles</h2>
+                <div class="table-wrapper">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Quantité</th>
+                                <th>Prix Unitaire (DH)</th>
+                                <th>Montant (DH)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-body">
+                            <tr>
+                                <td><input type="text" class="item-desc" placeholder="Description" required></td>
+                                <td><input type="number" class="item-qty" value="1" min="0" step="any" required></td>
+                                <td><input type="number" class="item-price" value="0" min="0" step="any" required></td>
+                                <td class="item-total">0.00</td>
+                                <td><button type="button" class="btn-remove" title="Supprimer">&times;</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" id="btn-add-item" class="btn btn-secondary">+ Ajouter un article</button>
+            </section>
+
+            <section class="form-section totals">
+                <div class="total-line">
+                    <span>Total à payer</span>
+                    <span id="grand-total">0.00 <small>DH</small></span>
+                </div>
+            </section>
+
+            <div class="actions">
+                <button type="button" id="btn-preview" class="btn btn-primary">Aperçu</button>
+                <button type="button" id="btn-pdf" class="btn btn-success">Télécharger PDF</button>
+                <button type="button" id="btn-excel" class="btn btn-info">Télécharger Excel</button>
+            </div>
+        </form>
+
+        <div id="preview-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Aperçu de la facture</h2>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <div class="modal-body" id="preview-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facture - Cocina Española Art MDF</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .invoice {
+            width: 210mm;
+            min-height: 297mm;
+            background: #fff;
+            padding: 25mm 20mm 15mm;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+        }
+
+        .company-name h1 {
+            font-size: 22px;
+            font-weight: 900;
+            color: #C9A84C;
+            letter-spacing: 1px;
+            line-height: 1.1;
+        }
+
+        .company-name .art-mdf {
+            font-size: 17px;
+            font-style: italic;
+            font-weight: 400;
+            color: #C9A84C;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            letter-spacing: 0.5px;
+        }
+
+        .header-right {
+            text-align: right;
+            font-size: 11px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .header-right .client-label {
+            font-weight: bold;
+            color: #333;
+            margin-top: 8px;
+            display: block;
+        }
+
+        .header-right input {
+            border: none;
+            border-bottom: 1px solid #ccc;
+            padding: 3px 0;
+            font-size: 12px;
+            width: 200px;
+            text-align: right;
+            background: transparent;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .header-right input:focus {
+            border-bottom-color: #C9A84C;
+        }
+
+        /* --- TITLE --- */
+        .title-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .title-section h2 {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .title-section hr {
+            border: none;
+            border-top: 2px solid #C9A84C;
+            width: 80px;
+            margin: 0 auto;
+        }
+
+        /* --- DATE ROW --- */
+        .date-row {
+            text-align: right;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .date-row label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .date-row input {
+            border: none;
+            border-bottom: 1px solid #ccc;
+            padding: 3px 0;
+            font-size: 12px;
+            width: 130px;
+            background: transparent;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .date-row input:focus {
+            border-bottom-color: #C9A84C;
+        }
+
+        /* --- TABLE --- */
+        .table-wrapper {
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        thead th {
+            background: #f0f0f0;
+            font-weight: bold;
+            color: #333;
+            padding: 8px 6px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        thead th:first-child {
+            text-align: left;
+        }
+
+        tbody td {
+            border: 1px solid #ddd;
+            padding: 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        tbody td:first-child {
+            text-align: left;
+        }
+
+        tbody td input {
+            width: 100%;
+            border: none;
+            padding: 6px 4px;
+            font-size: 12px;
+            font-family: inherit;
+            background: transparent;
+            outline: none;
+            text-align: inherit;
+        }
+
+        tbody td:first-child input {
+            text-align: left;
+        }
+
+        tbody td input:focus {
+            background: #fffbe6;
+        }
+
+        .montant-cell {
+            font-weight: 600;
+            color: #333;
+            padding: 6px 4px;
+        }
+
+        /* --- TOTAL --- */
+        .total-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+
+        .total-box {
+            background: #f0f0f0;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 280px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .total-box .total-amount {
+            font-size: 16px;
+            color: #C9A84C;
+        }
+
+        /* --- FOOTER --- */
+        .footer {
+            position: absolute;
+            bottom: 15mm;
+            left: 20mm;
+            right: 20mm;
+        }
+
+        .footer hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin-bottom: 8px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #888;
+            text-align: center;
+        }
+
+        .footer-content span {
+            flex: 1;
+        }
+
+        /* --- PRINT BUTTON --- */
+        .print-btn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            background: #C9A84C;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .print-btn:hover {
+            background: #b8973a;
+        }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .invoice {
+                box-shadow: none;
+                padding: 20mm 20mm 15mm;
+                width: 100%;
+                min-height: 100vh;
+            }
+
+            .print-btn {
+                display: none !important;
+            }
+
+            .header-right input,
+            .date-row input,
+            tbody td input {
+                border: none !important;
+                background: transparent !important;
+            }
+
+            tbody td {
+                border-color: #ccc;
+            }
+
+            thead th {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .total-box {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .footer {
+                position: fixed;
+                bottom: 15mm;
+                left: 20mm;
+                right: 20mm;
+            }
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="invoice">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <svg class="logo" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#F2D77D"/>
+                            <stop offset="50%" stop-color="#C9A84C"/>
+                            <stop offset="100%" stop-color="#A8862E"/>
+                        </linearGradient>
+                    </defs>
+                    <polygon points="10,50 30,10 40,10 20,50" fill="url(#goldGrad)" opacity="0.9"/>
+                    <polygon points="22,50 42,10 52,10 32,50" fill="url(#goldGrad)" opacity="0.7"/>
+                    <polygon points="34,50 54,10 60,10 44,50" fill="url(#goldGrad)" opacity="0.5"/>
+                </svg>
+                <div class="company-name">
+                    <h1>COCINA ESPAÑOLA</h1>
+                    <div class="art-mdf">Art MDF</div>
+                </div>
+            </div>
+            <div class="header-right">
+                Rue Tange Center Al hirafiyin N 25<br>
+                Imzouren AL Hoceima<br>
+                <span class="client-label">Client:</span>
+                <input type="text" placeholder="Nom du client">
+            </div>
+        </div>
+
+        <!-- TITLE -->
+        <div class="title-section">
+            <h2>FACTURE</h2>
+            <hr>
+        </div>
+
+        <!-- DATE -->
+        <div class="date-row">
+            <label>Date de facture:</label>
+            <input type="date" id="invoiceDate">
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:44%;">Description</th>
+                        <th style="width:16%;">Quantité</th>
+                        <th style="width:20%;">Prix DH</th>
+                        <th style="width:20%;">Montant DH</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <tr>
+                        <td><input type="text" class="desc" placeholder="Description"></td>
+                        <td><input type="number" class="qty" value="0" min="0" step="any"></td>
+                        <td><input type="number" class="price" value="0" min="0" step="any"></td>
+                        <td class="montant-cell">0.00</td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" class="desc" placeholder="Description"></td>
+                        <td><input type="number" class="qty" value="0" min="0" step="any"></td>
+                        <td><input type="number" class="price" value="0" min="0" step="any"></td>
+                        <td class="montant-cell">0.00</td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" class="desc" placeholder="Description"></td>
+                        <td><input type="number" class="qty" value="0" min="0" step="any"></td>
+                        <td><input type="number" class="price" value="0" min="0" step="any"></td>
+                        <td class="montant-cell">0.00</td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" class="desc" placeholder="Description"></td>
+                        <td><input type="number" class="qty" value="0" min="0" step="any"></td>
+                        <td><input type="number" class="price" value="0" min="0" step="any"></td>
+                        <td class="montant-cell">0.00</td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" class="desc" placeholder="Description"></td>
+                        <td><input type="number" class="qty" value="0" min="0" step="any"></td>
+                        <td><input type="number" class="price" value="0" min="0" step="any"></td>
+                        <td class="montant-cell">0.00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TOTAL -->
+        <div class="total-section">
+            <div class="total-box">
+                <span>Total à Pay en DH</span>
+                <span class="total-amount" id="grandTotal">0.00</span>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <hr>
+            <div class="footer-content">
+                <span>Rue Tange Center Al hirafiyin N 25<br>Imzouren AL Hoceima</span>
+                <span>Tél: +212 6 71 68 75 98</span>
+                <span>Instagram: cocinaespanola</span>
+            </div>
+        </div>
+
+    </div>
+
+    <button class="print-btn" onclick="window.print()">Imprimer</button>
+
+    <script>
+        function updateRow(row) {
+            const qty = parseFloat(row.querySelector('.qty').value) || 0;
+            const price = parseFloat(row.querySelector('.price').value) || 0;
+            const total = qty * price;
+            row.querySelector('.montant-cell').textContent = total.toFixed(2);
+        }
+
+        function updateTotal() {
+            let sum = 0;
+            document.querySelectorAll('#itemsBody tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('.qty').value) || 0;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                sum += qty * price;
+            });
+            document.getElementById('grandTotal').textContent = sum.toFixed(2);
+        }
+
+        document.getElementById('itemsBody').addEventListener('input', (e) => {
+            const row = e.target.closest('tr');
+            if (e.target.classList.contains('qty') || e.target.classList.contains('price')) {
+                updateRow(row);
+                updateTotal();
+            }
+        });
+
+        // Set today's date
+        document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+    </script>
+
+</body>
+</html>
