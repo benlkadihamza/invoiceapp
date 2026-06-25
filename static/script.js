@@ -115,12 +115,20 @@ function calculateAll() {
 
 function ghostComplete(input) {
     const val = input.value;
+    const prevLen = parseInt(input.dataset.prevlen || 0);
+    if (val.length < prevLen) {
+        input.dataset.prevlen = val.length;
+        return;
+    }
     const cursor = input.selectionStart;
     const typed = val.substring(0, cursor).toLowerCase();
     const match = SUGGESTIONS.find(s => s.toLowerCase().startsWith(typed));
     if (match && val.toLowerCase() !== match.toLowerCase()) {
         input.value = match;
         input.setSelectionRange(cursor, match.length);
+        input.dataset.prevlen = match.length;
+    } else {
+        input.dataset.prevlen = val.length;
     }
 }
 
