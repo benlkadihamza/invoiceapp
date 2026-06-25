@@ -25,6 +25,13 @@
                         <input type="date" id="date" name="date" required>
                     </div>
                 </div>
+                <div class="form-row" style="margin-top:12px;">
+                    <label class="switch-label">
+                        <input type="checkbox" id="show-facture-num">
+                        <span class="switch-slider"></span>
+                        <span class="switch-text">Afficher N° Facture</span>
+                    </label>
+                </div>
             </section>
 
             <section class="form-section">
@@ -70,8 +77,23 @@
 
             <section class="form-section totals">
                 <div class="total-line">
-                    <span>Total à payer</span>
+                    <span>Total en DH <small>(c'est le total d'argent)</small></span>
                     <span id="grand-total">0.00 <small>DH</small></span>
+                </div>
+                <div class="remise-section">
+                    <label class="switch-label">
+                        <input type="checkbox" id="remise-toggle">
+                        <span class="switch-slider"></span>
+                        <span class="switch-text">Remise</span>
+                    </label>
+                    <div id="remise-input-wrap">
+                        <label for="remise-amount">Remise en DH:</label>
+                        <input type="number" id="remise-amount" value="0" min="0" step="any" disabled>
+                    </div>
+                </div>
+                <div class="total-line final">
+                    <span>Total à payer en DH</span>
+                    <span id="net-total">0.00 <small>DH</small></span>
                 </div>
             </section>
 
