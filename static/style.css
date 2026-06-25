@@ -117,6 +117,11 @@ form {
     border-color: #4472C4;
 }
 
+#items-table td input.item-desc::selection {
+    background: #e0e0e0;
+    color: #999;
+}
+
 .item-total {
     font-weight: 600;
     color: #4472C4;
