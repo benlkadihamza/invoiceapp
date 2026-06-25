@@ -435,11 +435,16 @@
     <button class="print-btn" onclick="window.print()">Imprimer</button>
 
     <script>
+        function formatNumber(n) {
+            return Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        }
+
         function updateRow(row) {
             const qty = parseFloat(row.querySelector('.qty').value) || 0;
             const price = parseFloat(row.querySelector('.price').value) || 0;
             const total = qty * price;
             row.querySelector('.montant-cell').textContent = total.toFixed(2);
+            row.querySelector('.montant-cell').textContent = formatNumber(total);
         }
 
         function updateTotal() {
@@ -449,7 +454,7 @@
                 const price = parseFloat(row.querySelector('.price').value) || 0;
                 sum += qty * price;
             });
-            document.getElementById('grandTotal').textContent = sum.toFixed(2);
+            document.getElementById('grandTotal').textContent = formatNumber(sum);
         }
 
         document.getElementById('itemsBody').addEventListener('input', (e) => {
