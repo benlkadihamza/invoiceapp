@@ -187,7 +187,7 @@
     </div>
 
     <div class="preview-title">
-        <h2>FACTURE</h2>
+        <h2>FACTURE{% if data.get('show_facture_num') and data.get('invoice_num') %} N° {{ data.invoice_num }}{% endif %}</h2>
         <hr>
     </div>
 
@@ -210,18 +210,28 @@
                 <tr>
                     <td>{{ item.description }}</td>
                     <td>{{ item.quantity }}</td>
-                    <td>{{ "{:,.2f}".format(item.unit_price) }}</td>
-                    <td>{{ "{:,.2f}".format(item.total) }}</td>
+                    <td>{{ "{:,.2f}".format(item.unit_price)|replace(",", " ") }}</td>
+                    <td>{{ "{:,.2f}".format(item.total)|replace(",", " ") }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
+    {% set total = data.get('total', 0) %}
+    {% set remise = data.get('remise', 0) %}
+    {% set net_total = data.get('net_total', data.total) %}
+
     <div class="preview-total">
-        <div class="preview-total-box">
-            <span>Total à Payer en DH</span>
-            <span class="total-amount">{{ "{:,.2f}".format(data.total) }}</span>
+        <div class="preview-total-box" style="flex-direction:column; width:280px; padding:0; gap:0;">
+            {% if remise > 0 %}
+            <div style="padding:8px 20px; border-bottom:1px solid #000; font-weight:bold; text-align:center;">Total en DH</div>
+            <div style="padding:6px 20px; border-bottom:1px solid #000; text-align:center; font-size:15px;">{{ "{:,.2f}".format(total)|replace(",", " ") }}</div>
+            <div style="padding:8px 20px; border-bottom:1px solid #000; font-weight:bold; text-align:center;">Remise en DH</div>
+            <div style="padding:6px 20px; border-bottom:1px solid #000; text-align:center; font-size:15px;">-{{ "{:,.2f}".format(remise)|replace(",", " ") }}</div>
+            {% endif %}
+            <div style="padding:8px 20px; border-bottom:1px solid #000; font-weight:bold; text-align:center;">Total à Payer en DH</div>
+            <div style="padding:6px 20px; text-align:center; font-weight:bold; font-size:18px; color:#C9A84C;">{{ "{:,.2f}".format(net_total)|replace(",", " ") }}</div>
         </div>
     </div>
 
