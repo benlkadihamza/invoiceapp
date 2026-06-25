@@ -108,14 +108,12 @@
         color: #333;
         padding: 8px 6px;
         text-align: center;
-        border: 1px solid #ddd;
         border: 1px solid #000;
     }
 
     .preview-table-wrap thead th:first-child { text-align: left; }
 
     .preview-table-wrap tbody td {
-        border: 1px solid #ddd;
         border: 1px solid #000;
         padding: 6px 8px;
         text-align: center;
@@ -223,6 +221,7 @@
     <div class="preview-total">
         <div class="preview-total-box">
             <span>Total à Pay en DH</span>
+            <span>Total à Payer en DH</span>
             <span class="total-amount">{{ "{:,.2f}".format(data.total) }}</span>
         </div>
     </div>
