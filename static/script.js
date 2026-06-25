@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     calculateAll();
+    document.getElementById('remise-amount').disabled = true;
 });
 
 document.getElementById('items-body').addEventListener('input', (e) => {
@@ -9,6 +10,15 @@ document.getElementById('items-body').addEventListener('input', (e) => {
         calculateTotal();
     }
 });
+
+document.getElementById('remise-toggle').addEventListener('change', () => {
+    const enabled = document.getElementById('remise-toggle').checked;
+    document.getElementById('remise-amount').disabled = !enabled;
+    if (!enabled) document.getElementById('remise-amount').value = 0;
+    calculateNetTotal();
+});
+
+document.getElementById('remise-amount').addEventListener('input', calculateNetTotal);
 
 document.getElementById('btn-add-item').addEventListener('click', () => {
     const tbody = document.getElementById('items-body');
@@ -44,18 +54,32 @@ document.getElementById('items-body').addEventListener('click', (e) => {
     }
 });
 
+function formatNumber(n) {
+    return Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
 function calculateRow(tr) {
     const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
     const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-    tr.querySelector('.item-total').textContent = (qty * price).toFixed(2);
+    tr.querySelector('.item-total').textContent = formatNumber(qty * price);
 }
 
 function calculateTotal() {
     let total = 0;
     document.querySelectorAll('.item-total').forEach(el => {
-        total += parseFloat(el.textContent) || 0;
+        total += parseFloat(el.textContent.replace(/\s/g, '')) || 0;
     });
-    document.getElementById('grand-total').querySelector('small').parentElement.firstChild.textContent = total.toFixed(2);
+    document.getElementById('grand-total').querySelector('small').parentElement.firstChild.textContent = formatNumber(total);
+    calculateNetTotal();
+}
+
+function calculateNetTotal() {
+    const base = parseFloat(document.getElementById('grand-total').textContent.replace(/\s/g, '')) || 0;
+    const remise = document.getElementById('remise-toggle').checked
+        ? (parseFloat(document.getElementById('remise-amount').value) || 0)
+        : 0;
+    const net = Math.max(0, base - remise);
+    document.getElementById('net-total').querySelector('small').parentElement.firstChild.textContent = formatNumber(net);
 }
 
 function calculateAll() {
@@ -63,6 +87,7 @@ function calculateAll() {
         calculateRow(tr);
     });
     calculateTotal();
+    calculateNetTotal();
 }
 
 function getFormData() {
@@ -76,13 +101,22 @@ function getFormData() {
         }
     });
 
+    const baseTotal = items.reduce((s, i) => s + i.total, 0);
+    const remiseEnabled = document.getElementById('remise-toggle').checked;
+    const remiseAmount = remiseEnabled ? (parseFloat(document.getElementById('remise-amount').value) || 0) : 0;
+    const netTotal = Math.max(0, baseTotal - remiseAmount);
+
     return {
         invoice_num: document.getElementById('invoice_num').value.trim() || '001',
+        show_facture_num: document.getElementById('show-facture-num').checked,
         date: document.getElementById('date').value,
         client_name: document.getElementById('client_name').value.trim() || 'Client',
         client_address: document.getElementById('client_address').value.trim(),
         items: items,
-        total: items.reduce((s, i) => s + i.total, 0)
+        total: baseTotal,
+        remise_enabled: remiseEnabled,
+        remise: remiseAmount,
+        net_total: netTotal
     };
 }
 
