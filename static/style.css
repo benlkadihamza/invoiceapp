@@ -172,6 +172,8 @@ form {
 
 .total-line small { font-size: 14px; font-weight: 400; }
 
+.total-line span small { font-size: 12px; font-weight: 400; color: #888; }
+
 .total-line.final {
     margin-top: 20px;
     padding-top: 12px;
