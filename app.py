@@ -53,7 +53,12 @@ class InvoicePDF(FPDF):
         self.set_line_width(0.6)
         self.set_font("Helvetica", "B", 18)
         self.set_text_color(*DARK)
-        self.cell(0, 10, "FACTURE", align="C", new_x="LMARGIN", new_y="NEXT")
+        facture_num = getattr(self, "_facture_num", "")
+        show_fn = getattr(self, "_show_facture_num", False)
+        title = "FACTURE"
+        if show_fn and facture_num:
+            title += f" N\u00b0 {facture_num}"
+        self.cell(0, 10, title, align="C", new_x="LMARGIN", new_y="NEXT")
         y = self.get_y()
         self.line(95, y, 115, y)
         self.ln(8)
@@ -106,6 +111,8 @@ def generate_pdf():
     pdf = InvoicePDF()
     pdf._client_name = data.get("client_name", "")
     pdf._date = data.get("date", "")
+    pdf._facture_num = data.get("invoice_num", "")
+    pdf._show_facture_num = data.get("show_facture_num", False)
     pdf.set_auto_page_break(auto=True, margin=30)
     pdf.add_page()
 
@@ -134,26 +141,41 @@ def generate_pdf():
             last_page = pdf.page_no()
         pdf.cell(col_w[0], 7, item['description'], border=1)
         pdf.cell(col_w[1], 7, str(item['quantity']), border=1, align="C")
-        pdf.cell(col_w[2], 7, f"{item['unit_price']:,.2f}", border=1, align="C")
-        pdf.cell(col_w[3], 7, f"{item['total']:,.2f}", border=1, align="C")
+        pdf.cell(col_w[2], 7, f"{item['unit_price']:,.2f}".replace(',', ' '), border=1, align="C")
+        pdf.cell(col_w[3], 7, f"{item['total']:,.2f}".replace(',', ' '), border=1, align="C")
         pdf.ln()
 
     # Total
+    total = data['total']
+    remise = data.get('remise', 0)
+    net_total = data.get('net_total', total)
+
     pdf.ln(4)
-    total_x = pdf.l_margin + col_w[0] + col_w[1] + col_w[2]
     total_w = col_w[3]
-    pdf.set_fill_color(*GRAY_BG)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(*DARK)
-    pdf.set_draw_color(200, 200, 200)
+    total_x = pdf.l_margin + col_w[0] + col_w[1] + col_w[2]
+
     pdf.set_draw_color(0, 0, 0)
-    pdf.set_x(total_x)
-    pdf.cell(total_w, 10, "Total a Payer en DH", border=1, align="C", fill=True)
-    pdf.ln()
-    pdf.set_x(total_x)
-    pdf.set_text_color(*GOLD)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(total_w, 10, f"{data['total']:,.2f} DH", border=1, align="C", fill=True)
+
+    def price_line(label, value, val_color=None, bold=False):
+        pdf.set_x(total_x)
+        pdf.set_fill_color(*GRAY_BG)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(*DARK)
+        pdf.cell(total_w, 10, label, border=1, align="C", fill=True)
+        pdf.ln()
+        pdf.set_x(total_x)
+        if val_color:
+            pdf.set_text_color(*val_color)
+        else:
+            pdf.set_text_color(*DARK)
+        pdf.set_font("Helvetica", "B" if bold else "", 12)
+        pdf.cell(total_w, 10, value, border=1, align="C", fill=True)
+        pdf.ln(10)
+
+    if remise > 0:
+        price_line("Total en DH", f"{total:,.2f} DH".replace(',', ' '))
+        price_line("Remise en DH", f"-{remise:,.2f} DH".replace(',', ' '))
+    price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
 
     name = f"{safe_filename(data['client_name'])}.pdf"
     buf = BytesIO()
@@ -212,7 +234,12 @@ def generate_excel():
 
     # Title
     ws.merge_cells('A6:D6')
-    ws['A6'] = "FACTURE"
+    title = "FACTURE"
+    show_fn = data.get("show_facture_num", False)
+    fn = data.get("invoice_num", "")
+    if show_fn and fn:
+        title += f" N\u00b0 {fn}"
+    ws['A6'] = title
     ws['A6'].font = Font(name="Arial", bold=True, size=18, color="333333")
     ws['A6'].alignment = Alignment(horizontal='center')
 
@@ -249,24 +276,57 @@ def generate_excel():
         for c in range(1, 5):
             ws.cell(row=r, column=c).alignment = Alignment(horizontal='center')
 
-    # Total
-    total_row = header_row + 1 + len(data['items']) + 1
-    ws.merge_cells(f'C{total_row}:C{total_row}')
-    ws.cell(row=total_row, column=3, value="Total à Pay en DH")
-    ws.cell(row=total_row, column=3, value="Total à Payer en DH")
-    ws.cell(row=total_row, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-    ws.cell(row=total_row, column=3).fill = gray_fill
-    ws.cell(row=total_row, column=3).alignment = Alignment(horizontal='center')
-    ws.cell(row=total_row, column=3).border = thin_border
+    # Total lines
+    total = data['total']
+    remise = data.get('remise', 0)
+    net_total = data.get('net_total', total)
 
-    ws.cell(row=total_row, column=4, value=data['total'])
-    ws.cell(row=total_row, column=4).font = Font(name="Arial", bold=True, size=12, color=GOLD_HEX)
-    ws.cell(row=total_row, column=4).fill = gray_fill
-    ws.cell(row=total_row, column=4).alignment = Alignment(horizontal='center')
-    ws.cell(row=total_row, column=4).border = thin_border
+    r = header_row + 1 + len(data['items']) + 1
+
+    if remise > 0:
+        # Total en DH
+        ws.merge_cells(f'C{r}:C{r}')
+        ws.cell(row=r, column=3, value="Total en DH")
+        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
+        ws.cell(row=r, column=3).fill = gray_fill
+        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+        ws.cell(row=r, column=3).border = thin_border
+        ws.cell(row=r, column=4, value=total)
+        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
+        ws.cell(row=r, column=4).fill = gray_fill
+        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
+        ws.cell(row=r, column=4).border = thin_border
+        r += 1
+
+        # Remise en DH
+        ws.merge_cells(f'C{r}:C{r}')
+        ws.cell(row=r, column=3, value="Remise en DH")
+        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
+        ws.cell(row=r, column=3).fill = gray_fill
+        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+        ws.cell(row=r, column=3).border = thin_border
+        ws.cell(row=r, column=4, value=-remise)
+        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
+        ws.cell(row=r, column=4).fill = gray_fill
+        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
+        ws.cell(row=r, column=4).border = thin_border
+        r += 1
+
+    # Total a Payer en DH
+    ws.merge_cells(f'C{r}:C{r}')
+    ws.cell(row=r, column=3, value="Total à Payer en DH")
+    ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
+    ws.cell(row=r, column=3).fill = gray_fill
+    ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+    ws.cell(row=r, column=3).border = thin_border
+    ws.cell(row=r, column=4, value=net_total)
+    ws.cell(row=r, column=4).font = Font(name="Arial", bold=True, size=12, color=GOLD_HEX)
+    ws.cell(row=r, column=4).fill = gray_fill
+    ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
+    ws.cell(row=r, column=4).border = thin_border
 
     # Footer
-    footer_row = total_row + 2
+    footer_row = r + 2
     ws.merge_cells(f'A{footer_row}:A{footer_row}')
     ws[f'A{footer_row}'] = "Rue Tange Center Al hirafiyin N 25"
     ws[f'A{footer_row}'].font = Font(name="Arial", size=8, color="888888")
