@@ -1,3 +1,13 @@
+const SUGGESTIONS = [
+    "Cuisine",
+    "Protection Bas De L'évier",
+    "Accessoire Apoon",
+    "Tiroir à Épices",
+    "Système De Gaz",
+    "Séparation",
+    "Tiroir"
+];
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     calculateAll();
@@ -8,6 +18,19 @@ document.getElementById('items-body').addEventListener('input', (e) => {
     if (e.target.classList.contains('item-qty') || e.target.classList.contains('item-price')) {
         calculateRow(e.target.closest('tr'));
         calculateTotal();
+    }
+    if (e.target.classList.contains('item-desc')) {
+        ghostComplete(e.target);
+    }
+});
+
+document.getElementById('items-body').addEventListener('keydown', (e) => {
+    if (e.target.classList.contains('item-desc') && e.key === 'Tab') {
+        const selStart = e.target.selectionStart;
+        const selEnd = e.target.selectionEnd;
+        if (selEnd > selStart) {
+            e.target.setSelectionRange(selEnd, selEnd);
+        }
     }
 });
 
@@ -88,6 +111,17 @@ function calculateAll() {
     });
     calculateTotal();
     calculateNetTotal();
+}
+
+function ghostComplete(input) {
+    const val = input.value;
+    const cursor = input.selectionStart;
+    const typed = val.substring(0, cursor).toLowerCase();
+    const match = SUGGESTIONS.find(s => s.toLowerCase().startsWith(typed));
+    if (match && val.toLowerCase() !== match.toLowerCase()) {
+        input.value = match;
+        input.setSelectionRange(cursor, match.length);
+    }
 }
 
 function getFormData() {
