@@ -117,6 +117,7 @@ def generate_pdf():
         pdf.set_fill_color(*GRAY_BG)
         pdf.set_text_color(*DARK)
         pdf.set_draw_color(200, 200, 200)
+        pdf.set_draw_color(0, 0, 0)
         for i, h in enumerate(headers):
             pdf.cell(col_w[i], 8, h, border=1, align="C", fill=True)
         pdf.ln()
@@ -124,6 +125,7 @@ def generate_pdf():
     draw_table_header()
 
     pdf.set_font("Helvetica", "", 9)
+    pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(*DARK)
     last_page = pdf.page_no()
     for item in data['items']:
@@ -144,8 +146,10 @@ def generate_pdf():
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(*DARK)
     pdf.set_draw_color(200, 200, 200)
+    pdf.set_draw_color(0, 0, 0)
     pdf.set_x(total_x)
     pdf.cell(total_w, 10, "Total a Pay en DH", border=1, align="C", fill=True)
+    pdf.cell(total_w, 10, "Total a Payer en DH", border=1, align="C", fill=True)
     pdf.ln()
     pdf.set_x(total_x)
     pdf.set_text_color(*GOLD)
