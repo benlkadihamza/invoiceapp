@@ -149,6 +149,7 @@ def generate_pdf():
     pdf.set_draw_color(0, 0, 0)
     pdf.set_x(total_x)
     pdf.cell(total_w, 10, "Total a Pay en DH", border=1, align="C", fill=True)
+   
     pdf.cell(total_w, 10, "Total a Payer en DH", border=1, align="C", fill=True)
     pdf.ln()
     pdf.set_x(total_x)
