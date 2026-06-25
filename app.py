@@ -254,6 +254,7 @@ def generate_excel():
     total_row = header_row + 1 + len(data['items']) + 1
     ws.merge_cells(f'C{total_row}:C{total_row}')
     ws.cell(row=total_row, column=3, value="Total à Pay en DH")
+    ws.cell(row=total_row, column=3, value="Total à Payer en DH")
     ws.cell(row=total_row, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
     ws.cell(row=total_row, column=3).fill = gray_fill
     ws.cell(row=total_row, column=3).alignment = Alignment(horizontal='center')
