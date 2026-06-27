@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
@@ -14,6 +15,7 @@ app = Flask(__name__)
 # Database configuration: PostgreSQL via DATABASE_URL env var, or SQLite fallback
 # ---------------------------------------------------------------------------
 database_url = os.environ.get("DATABASE_URL")
+print("DATABASE_URL =", database_url)
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 if not database_url:
@@ -480,10 +482,12 @@ def save_invoice_route():
         return jsonify({"error": str(e)}), 400
     except IntegrityError:
         db.session.rollback()
+        app.logger.exception("IntegrityError saving invoice")
         return jsonify({"error": "Numéro de facture déjà utilisé."}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Erreur lors de l'enregistrement de la facture."}), 500
+        app.logger.exception("Error saving invoice")
+        return jsonify({"error": f"Erreur lors de l'enregistrement de la facture: {str(e)}"}), 500
 
 
 def get_invoice_by_id(invoice_id):
