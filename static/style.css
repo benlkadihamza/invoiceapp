@@ -77,10 +77,6 @@ form {
     box-shadow: 0 0 0 3px rgba(68,114,196,0.15);
 }
 
-.table-wrapper {
-    overflow-x: auto;
-}
-
 #items-table {
     width: 100%;
     border-collapse: collapse;
@@ -117,9 +113,48 @@ form {
     border-color: #4472C4;
 }
 
-#items-table td input.item-desc::selection {
-    background: #e0e0e0;
-    color: #999;
+.desc-wrapper {
+    position: relative;
+}
+
+.suggestion-list {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 0 0 6px 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.suggestion-list.active {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.suggestion-item:hover {
+    background: #f0f2f5;
+}
+
+.suggestion-other {
+    border-top: 1px solid #eee;
+    color: #4472C4;
+    font-weight: 600;
+}
+
+.suggestion-other:hover {
+    background: #e8f0fe;
 }
 
 .item-total {
