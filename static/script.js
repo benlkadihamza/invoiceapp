@@ -10,11 +10,22 @@ const SUGGESTIONS = [
 
 let focusedDesc = null;
 
+// Tracks the DB id of the invoice currently loaded in the form.
+// null = creating a new invoice; number = editing an existing invoice.
+let currentInvoiceId = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     calculateAll();
     document.getElementById('remise-amount').disabled = true;
     document.getElementById('payer-amount').disabled = true;
+
+    // If the page was opened with ?edit=<id>, load that invoice into the form.
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('edit');
+    if (editId) {
+        loadInvoiceForEdit(parseInt(editId, 10));
+    }
 });
 
 document.getElementById('items-body').addEventListener('input', (e) => {
@@ -224,7 +235,7 @@ function getFormData() {
     const payerAmount = payerEnabled ? (parseFloat(document.getElementById('payer-amount').value) || 0) : 0;
     const netTotal = Math.max(0, baseTotal - remiseAmount - payerAmount);
 
-    return {
+    const data = {
         invoice_num: document.getElementById('invoice_num').value.trim() || '001',
         show_facture_num: document.getElementById('show-facture-num').checked,
         date: document.getElementById('date').value,
@@ -238,6 +249,92 @@ function getFormData() {
         payer: payerAmount,
         net_total: netTotal
     };
+
+    // Include the DB id when editing so the backend does UPDATE, not INSERT.
+    if (currentInvoiceId !== null) {
+        data.id = currentInvoiceId;
+    }
+
+    return data;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edit Invoice
+// Fetches all invoice data from the backend, populates every form field,
+// and switches the form into "edit mode" (Save → UPDATE instead of INSERT).
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadInvoiceForEdit(invoiceId) {
+    try {
+        const res = await fetch(`/invoices/${invoiceId}/json`);
+        if (!res.ok) { alert('Facture introuvable.'); return; }
+        const inv = await res.json();
+
+        // Store the id so Save knows to UPDATE this row.
+        currentInvoiceId = inv.id;
+
+        // ── Header fields ──────────────────────────────────────────────────
+        document.getElementById('invoice_num').value    = inv.invoice_num    || '';
+        document.getElementById('date').value           = inv.date           || '';
+        document.getElementById('client_name').value    = inv.client_name    || '';
+        document.getElementById('client_address').value = inv.client_address || '';
+
+        // ── Items ──────────────────────────────────────────────────────────
+        const tbody   = document.getElementById('items-body');
+        tbody.innerHTML = '';  // clear existing rows
+
+        const itemsArr = Array.isArray(inv.items) && inv.items.length > 0
+            ? inv.items
+            : [{ description: '', quantity: 1, unit_price: 0, total: 0 }];
+
+        itemsArr.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><div class="desc-wrapper"><input type="text" class="item-desc" placeholder="Description" required><div class="suggestion-list"></div></div></td>
+                <td><input type="number" class="item-qty"   value="1" min="0" step="any" required></td>
+                <td><input type="number" class="item-price" value="0" min="0" step="any" required></td>
+                <td class="item-total">0.00</td>
+                <td><button type="button" class="btn-remove" title="Supprimer">&times;</button></td>
+            `;
+            tbody.appendChild(tr);
+            tr.querySelector('.item-desc').value  = item.description || '';
+            tr.querySelector('.item-qty').value   = item.quantity    ?? 1;
+            tr.querySelector('.item-price').value = item.unit_price  ?? 0;
+            tr.querySelector('.btn-remove').addEventListener('click', () => {
+                if (document.querySelectorAll('#items-body tr').length > 1) {
+                    tr.remove();
+                    calculateTotal();
+                }
+            });
+        });
+
+        // ── Discount / payment ─────────────────────────────────────────────
+        const remise = inv.remise || 0;
+        const payer  = inv.payer  || 0;
+        if (remise > 0) {
+            document.getElementById('remise-toggle').checked  = true;
+            document.getElementById('remise-amount').disabled = false;
+            document.getElementById('remise-amount').value    = remise;
+        }
+        if (payer > 0) {
+            document.getElementById('payer-toggle').checked  = true;
+            document.getElementById('payer-amount').disabled = false;
+            document.getElementById('payer-amount').value    = payer;
+        }
+
+        // ── Recalculate totals ─────────────────────────────────────────────
+        calculateAll();
+
+        // ── Visual indicator ───────────────────────────────────────────────
+        const saveBtn = document.getElementById('btn-save');
+        saveBtn.textContent = '💾 Mettre à jour';
+        saveBtn.title = `Modification de la facture ID ${inv.id}`;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (err) {
+        console.error(err);
+        alert('Erreur lors du chargement de la facture pour modification.');
+    }
 }
 
 document.getElementById('btn-preview').addEventListener('click', async () => {
@@ -281,21 +378,55 @@ document.getElementById('btn-pdf').addEventListener('click', async () => {
     const data = getFormData();
     if (!data.items.length) return alert('Ajoutez au moins un article.');
 
+    // Capture mode BEFORE the save so the reset decision is correct even
+    // though resetFormToNewInvoice() will clear currentInvoiceId.
+    const wasEditing = currentInvoiceId !== null;
+
+    // ── Step 1: Save / update the invoice first ───────────────────────────────
+    let savedId;
     try {
-        const res = await fetch('/generate_pdf', {
+        const saveRes = await fetch('/save_invoice', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        const blob = await res.blob();
+        const saveResult = await saveRes.json();
+        if (!saveResult || !saveResult.id) {
+            alert("Erreur lors de l'enregistrement de la facture. Le PDF n'a pas \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9.");
+            return;
+        }
+        savedId = saveResult.id;
+    } catch (e) {
+        alert("Erreur lors de l'enregistrement de la facture. Le PDF n'a pas \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9.");
+        return;
+    }
+
+    // ── Step 2: Generate and download the PDF ─────────────────────────────────
+    try {
+        const pdfRes = await fetch('/generate_pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const blob = await pdfRes.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = getFilenameFromHeaders(res) || `facture_${data.invoice_num}.pdf`;
+        a.download = getFilenameFromHeaders(pdfRes) || `facture_${data.invoice_num}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
     } catch (e) {
-        alert('Erreur lors de la génération du PDF.');
+        alert('Erreur lors de la g\u00e9n\u00e9ration du PDF.');
+        return;
+    }
+
+    // ── Step 3: Post-download state ───────────────────────────────────────────
+    if (wasEditing) {
+        // EDIT mode: stay on the invoice, just show a confirmation banner.
+        showSuccessBanner(`Facture mise \u00e0 jour et PDF t\u00e9l\u00e9charg\u00e9. ID\u00a0: ${savedId}`);
+    } else {
+        // CREATE mode: new invoice saved \u2192 reset the form for the next one.
+        resetFormToNewInvoice();
     }
 });
 
@@ -318,5 +449,136 @@ document.getElementById('btn-excel').addEventListener('click', async () => {
         URL.revokeObjectURL(url);
     } catch (e) {
         alert('Erreur lors de la génération du fichier Excel.');
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// resetFormToNewInvoice
+// Called after a NEW invoice is successfully saved.
+// Clears every field and returns the form to "create" mode so the user can
+// immediately start entering a new invoice without a page reload.
+// ─────────────────────────────────────────────────────────────────────────────
+function resetFormToNewInvoice() {
+    // ── 1. Exit edit mode ─────────────────────────────────────────────────────
+    currentInvoiceId = null;
+
+    // ── 2. Header fields ──────────────────────────────────────────────────────
+    document.getElementById('invoice_num').value    = '001';
+    document.getElementById('date').value           = new Date().toISOString().split('T')[0];
+    document.getElementById('client_name').value    = '';
+    document.getElementById('client_address').value = '';
+    document.getElementById('show-facture-num').checked = false;
+
+    // ── 3. Items – remove all rows, add one blank row ─────────────────────────
+    const tbody = document.getElementById('items-body');
+    tbody.innerHTML = `
+        <tr>
+            <td><div class="desc-wrapper"><input type="text" class="item-desc" placeholder="Description" required><div class="suggestion-list"></div></div></td>
+            <td><input type="number" class="item-qty"   value="1" min="0" step="any" required></td>
+            <td><input type="number" class="item-price" value="0" min="0" step="any" required></td>
+            <td class="item-total">0.00</td>
+            <td><button type="button" class="btn-remove" title="Supprimer">&times;</button></td>
+        </tr>
+    `;
+
+    // ── 4. Discount / payment ─────────────────────────────────────────────────
+    document.getElementById('remise-toggle').checked  = false;
+    document.getElementById('remise-amount').value    = 0;
+    document.getElementById('remise-amount').disabled = true;
+    document.getElementById('payer-toggle').checked   = false;
+    document.getElementById('payer-amount').value     = 0;
+    document.getElementById('payer-amount').disabled  = true;
+
+    // ── 5. Recalculate totals to zero ─────────────────────────────────────────
+    calculateAll();
+
+    // ── 6. Restore Save button to create-mode label ───────────────────────────
+    const saveBtn = document.getElementById('btn-save');
+    saveBtn.textContent = 'Enregistrer';
+    saveBtn.title = '';
+
+    // ── 7. Show a non-blocking success banner ─────────────────────────────────
+    showSuccessBanner('Facture enregistrée avec succès. Vous pouvez créer une nouvelle facture.');
+
+    // ── 8. Focus client name so the user can start typing immediately ─────────
+    document.getElementById('client_name').focus();
+
+    // ── 9. Scroll to top ──────────────────────────────────────────────────────
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// showSuccessBanner
+// Displays a transient green success notification at the top of the page.
+// It auto-dismisses after 4 seconds or when the user clicks it.
+// ─────────────────────────────────────────────────────────────────────────────
+function showSuccessBanner(message) {
+    // Remove any existing banner first.
+    const existing = document.getElementById('success-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'success-banner';
+    banner.textContent = message;
+    Object.assign(banner.style, {
+        position:        'fixed',
+        top:             '20px',
+        left:            '50%',
+        transform:       'translateX(-50%)',
+        background:      '#27ae60',
+        color:           '#fff',
+        padding:         '14px 28px',
+        borderRadius:    '8px',
+        fontSize:        '15px',
+        fontWeight:      '600',
+        boxShadow:       '0 4px 20px rgba(0,0,0,0.18)',
+        zIndex:          '9999',
+        cursor:          'pointer',
+        transition:      'opacity 0.4s ease',
+        whiteSpace:      'nowrap',
+        maxWidth:        '90vw',
+        textAlign:       'center',
+    });
+
+    document.body.appendChild(banner);
+
+    // Fade out and remove after 4 s.
+    const fadeOut = () => {
+        banner.style.opacity = '0';
+        setTimeout(() => banner.remove(), 400);
+    };
+    banner.addEventListener('click', fadeOut);
+    setTimeout(fadeOut, 4000);
+}
+
+document.getElementById('btn-save').addEventListener('click', async () => {
+    const data = getFormData();
+    if (!data.items.length) return alert('Ajoutez au moins un article.');
+
+    // Remember whether we were in create or edit mode BEFORE the fetch,
+    // because resetFormToNewInvoice() will clear currentInvoiceId.
+    const wasEditing = currentInvoiceId !== null;
+
+    try {
+        const res = await fetch('/save_invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result && result.id) {
+            if (wasEditing) {
+                // ── EDIT mode: invoice updated, stay on the same invoice ──────
+                alert(`Facture mise à jour avec succès. ID: ${result.id}`);
+                // currentInvoiceId stays set; form keeps the edited data.
+            } else {
+                // ── CREATE mode: new invoice saved → reset to blank form ──────
+                resetFormToNewInvoice();
+            }
+        } else {
+            alert("Erreur lors de l'enregistrement de la facture.");
+        }
+    } catch (e) {
+        alert("Erreur lors de l'enregistrement de la facture.");
     }
 });
