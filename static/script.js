@@ -576,9 +576,11 @@ document.getElementById('btn-save').addEventListener('click', async () => {
                 resetFormToNewInvoice();
             }
         } else {
-            alert("Erreur lors de l'enregistrement de la facture.");
+            const msg = result && result.error ? result.error : "Erreur lors de l'enregistrement de la facture.";
+            alert(msg);
         }
     } catch (e) {
         alert("Erreur lors de l'enregistrement de la facture.");
+        console.error(e);
     }
 });
