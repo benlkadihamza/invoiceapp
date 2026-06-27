@@ -116,7 +116,7 @@ def generate_pdf():
     pdf.set_auto_page_break(auto=True, margin=30)
     pdf.add_page()
 
-    col_w = [78, 28, 38, 38]
+    col_w = [72, 28, 44, 38]
     headers = ["Description", "Quantité", "Prix DH", "Montant DH"]
 
     def draw_table_header():
@@ -151,25 +151,21 @@ def generate_pdf():
     net_total = data.get('net_total', total)
 
     pdf.ln(4)
-    total_w = col_w[3]
-    total_x = pdf.l_margin + col_w[0] + col_w[1] + col_w[2]
+    total_x = pdf.l_margin + col_w[0] + col_w[1]
 
     pdf.set_draw_color(0, 0, 0)
 
     def price_line(label, value, val_color=None, bold=False):
         pdf.set_x(total_x)
         pdf.set_fill_color(*GRAY_BG)
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.set_text_color(*DARK)
-        pdf.cell(total_w, 10, label, border=1, align="C", fill=True)
-        pdf.ln()
-        pdf.set_x(total_x)
+        pdf.set_draw_color(0, 0, 0)
+        pdf.set_font("Helvetica", "B" if bold else "", 10)
         if val_color:
             pdf.set_text_color(*val_color)
         else:
             pdf.set_text_color(*DARK)
-        pdf.set_font("Helvetica", "B" if bold else "", 12)
-        pdf.cell(total_w, 10, value, border=1, align="C", fill=True)
+        pdf.cell(col_w[2], 10, label, border=1, align="C", fill=True)
+        pdf.cell(col_w[3], 10, value, border=1, align="C", fill=True)
         pdf.ln(10)
 
     if remise > 0:
@@ -285,7 +281,6 @@ def generate_excel():
 
     if remise > 0:
         # Total en DH
-        ws.merge_cells(f'C{r}:C{r}')
         ws.cell(row=r, column=3, value="Total en DH")
         ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
         ws.cell(row=r, column=3).fill = gray_fill
@@ -299,7 +294,6 @@ def generate_excel():
         r += 1
 
         # Remise en DH
-        ws.merge_cells(f'C{r}:C{r}')
         ws.cell(row=r, column=3, value="Remise en DH")
         ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
         ws.cell(row=r, column=3).fill = gray_fill
@@ -313,7 +307,6 @@ def generate_excel():
         r += 1
 
     # Total a Payer en DH
-    ws.merge_cells(f'C{r}:C{r}')
     ws.cell(row=r, column=3, value="Total à Payer en DH")
     ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
     ws.cell(row=r, column=3).fill = gray_fill
