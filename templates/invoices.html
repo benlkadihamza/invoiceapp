@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste des Factures</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-actions h1 {
+            margin: 0;
+        }
+        .btn-nav {
+            text-decoration: none;
+            background: #4472C4;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            background: #3661b0;
+        }
+        .invoices-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .invoices-table th, .invoices-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eeeeee;
+        }
+        .invoices-table th {
+            background-color: #f8fafc;
+            color: #333333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .invoices-table td {
+            font-size: 14px;
+            color: #555555;
+        }
+        .invoices-table tr:last-child td {
+            border-bottom: none;
+        }
+        .invoices-table tr:hover {
+            background-color: #f8fafc;
+        }
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-action {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-action-pdf {
+            background: #2ed573;
+            color: white;
+        }
+        .btn-action-pdf:hover {
+            background: #26b863;
+        }
+        .btn-action-excel {
+            background: #17a2b8;
+            color: white;
+        }
+        .btn-action-excel:hover {
+            background: #138496;
+        }
+        .btn-action-edit {
+            background: #C9A84C;
+            color: white;
+        }
+        .btn-action-edit:hover {
+            background: #b0913b;
+        }
+        .btn-action-delete {
+            background: #ff4757;
+            color: white;
+        }
+        .btn-action-delete:hover {
+            background: #e04050;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #888888;
+            font-size: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+        .search-container {
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        #search-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 14px;
+            border: 1px solid #dddddd;
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        #search-input:focus {
+            border-color: #4472C4;
+            box-shadow: 0 0 0 3px rgba(68, 114, 196, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header-actions">
+            <h1>Liste des Factures</h1>
+            <a href="/" class="btn-nav">Nouvelle facture</a>
+        </header>
+
+        {% if invoices %}
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Rechercher par N° de facture ou nom de client...">
+            </div>
+            <table class="invoices-table">
+                <thead>
+                    <tr>
+                        <th>N° Facture</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr id="invoice-row-{{ invoice.id }}">
+                            <td><strong>{{ invoice.invoice_num }}</strong></td>
+                            <td>{{ invoice.client_name }}</td>
+                            <td>{{ invoice.date }}</td>
+                            <td><strong>{{ "{:,.2f}".format(invoice.net_total).replace(',', ' ') }} DH</strong></td>
+                            <td>
+                                <div class="action-btns">
+                                    <a href="/?edit={{ invoice.id }}" class="btn-action btn-action-edit" title="Modifier">✏️ Modifier</a>
+                                    <a href="/invoices/{{ invoice.id }}/pdf" class="btn-action btn-action-pdf" title="Télécharger PDF">PDF</a>
+                                    <a href="/invoices/{{ invoice.id }}/excel" class="btn-action btn-action-excel" title="Télécharger Excel">Excel</a>
+                                    <button type="button" class="btn-action btn-action-delete" onclick="deleteInvoice({{ invoice.id }})" title="Supprimer">Supprimer</button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <p>Aucune facture enregistrée pour le moment.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        async function deleteInvoice(invoiceId) {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cette facture ?")) {
+                return;
+            }
+            try {
+                const res = await fetch(`/invoices/${invoiceId}/delete`, {
+                    method: 'POST'
+                });
+                const result = await res.json();
+                if (result && result.success) {
+                    window.location.reload();
+                } else {
+                    alert("Erreur lors de la suppression de la facture.");
+                }
+            } catch (e) {
+                alert("Erreur lors de la suppression de la facture.");
+            }
+        }
+
+        document.getElementById('search-input')?.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.invoices-table tbody tr');
+            rows.forEach(row => {
+                const invoiceNum = row.cells[0].textContent.toLowerCase();
+                const clientName = row.cells[1].textContent.toLowerCase();
+                if (invoiceNum.includes(query) || clientName.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
