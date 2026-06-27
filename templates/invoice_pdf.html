@@ -214,26 +214,32 @@
                     <td>{{ "{:,.2f}".format(item.total)|replace(",", " ") }}</td>
                 </tr>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
     {% set total = data.get('total', 0) %}
     {% set remise = data.get('remise', 0) %}
     {% set net_total = data.get('net_total', data.total) %}
-
-    <div class="preview-total">
-        <div class="preview-total-box" style="flex-direction:column; width:280px; padding:0; gap:0;">
-            {% if remise > 0 %}
-            <div style="padding:8px 20px; border-bottom:1px solid #000; font-weight:bold; text-align:center;">Total en DH</div>
-            <div style="padding:6px 20px; border-bottom:1px solid #000; text-align:center; font-size:15px;">{{ "{:,.2f}".format(total)|replace(",", " ") }}</div>
-            <div style="padding:8px 20px; border-bottom:1px solid #000; font-weight:bold; text-align:center;">Remise en DH</div>
-            <div style="padding:6px 20px; border-bottom:1px solid #000; text-align:center; font-size:15px;">-{{ "{:,.2f}".format(remise)|replace(",", " ") }}</div>
-            {% endif %}
-            <div style="padding:8px 20px; border-bottom:1px solid #000; font-weight:bold; text-align:center;">Total à Payer en DH</div>
-            <div style="padding:6px 20px; text-align:center; font-weight:bold; font-size:18px; color:#C9A84C;">{{ "{:,.2f}".format(net_total)|replace(",", " ") }}</div>
-        </div>
-    </div>
+    {% if remise > 0 %}
+            <tr>
+                <td></td>
+                <td></td>
+                <td style="font-weight:bold; text-align:center;">Total en DH</td>
+                <td style="text-align:center;">{{ "{:,.2f}".format(total)|replace(",", " ") }}</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td style="font-weight:bold; text-align:center;">Remise en DH</td>
+                <td style="text-align:center;">-{{ "{:,.2f}".format(remise)|replace(",", " ") }}</td>
+            </tr>
+    {% endif %}
+            <tr>
+                <td></td>
+                <td></td>
+                <td style="font-weight:bold; text-align:center;">Total à Payer en DH</td>
+                <td style="text-align:center; font-weight:bold; font-size:16px; color:#C9A84C;">{{ "{:,.2f}".format(net_total)|replace(",", " ") }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
     <div class="preview-footer">
         <span>Rue Tange Center Al hirafiyin N 25<br>Imzouren AL Hoceima</span>
