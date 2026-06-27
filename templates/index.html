@@ -8,8 +8,9 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Générateur de Factures</h1>
+        <header style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <h1 style="margin:0;">Générateur de Factures</h1>
+            <a href="/invoices" style="text-decoration:none; background:#C9A84C; color:white; padding:10px 22px; border-radius:6px; font-size:14px; font-weight:600; transition:background 0.2s;" onmouseover="this.style.background='#b8923e'" onmouseout="this.style.background='#C9A84C'">📋 Toutes les Factures</a>
         </header>
 
         <form id="invoice-form">
@@ -112,6 +113,7 @@
                 <button type="button" id="btn-preview" class="btn btn-primary">Aperçu</button>
                 <button type="button" id="btn-pdf" class="btn btn-success">Télécharger PDF</button>
                 <button type="button" id="btn-excel" class="btn btn-info">Télécharger Excel</button>
+                <button type="button" id="btn-save" class="btn btn-save">Enregistrer</button>
             </div>
         </form>
 
