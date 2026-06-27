@@ -1,7 +1,6 @@
 import logging
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import IntegrityError
 from fpdf import FPDF
 from datetime import datetime
 import openpyxl
@@ -28,7 +27,7 @@ db = SQLAlchemy(app)
 class Invoice(db.Model):
     __tablename__ = "invoices"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    invoice_num = db.Column(db.String, unique=True, nullable=False, default="")
+    invoice_num = db.Column(db.String, nullable=False, default="")
     date = db.Column(db.String, nullable=False, default="")
     client_name = db.Column(db.String, nullable=False, default="")
     client_address = db.Column(db.String, nullable=False, default="")
@@ -81,13 +80,6 @@ def save_invoice(data):
     items          = data.get("items", [])
 
     existing_id = data.get("id")
-
-    # Enforce unique invoice numbers
-    dup_query = Invoice.query.filter(Invoice.invoice_num == invoice_num)
-    if existing_id:
-        dup_query = dup_query.filter(Invoice.id != existing_id)
-    if dup_query.first():
-        raise ValueError("Ce numéro de facture existe déjà.")
 
     if existing_id:
         invoice = db.session.get(Invoice, existing_id)
@@ -482,13 +474,6 @@ def save_invoice_route():
         if invoice_id is None:
             return jsonify({"error": "Facture non trouvée"}), 404
         return jsonify({"id": invoice_id})
-    except ValueError as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
-    except IntegrityError:
-        db.session.rollback()
-        app.logger.exception("IntegrityError saving invoice")
-        return jsonify({"error": "Numéro de facture déjà utilisé."}), 400
     except Exception as e:
         db.session.rollback()
         app.logger.exception("Error saving invoice")
@@ -525,14 +510,15 @@ def get_invoice_json(invoice_id):
 @app.route("/invoices")
 def invoices_list():
     try:
-        rows = Invoice.query.order_by(Invoice.date.desc(), Invoice.id.desc()).all()
+        rows = Invoice.query.order_by(Invoice.id.desc()).all()
         invoices = [
             {
                 "id": inv.id,
                 "invoice_num": inv.invoice_num,
                 "date": inv.date,
                 "client_name": inv.client_name,
-                "net_total": inv.net_total
+                "net_total": inv.net_total,
+                "created_at": inv.created_at
             }
             for inv in rows
         ]
