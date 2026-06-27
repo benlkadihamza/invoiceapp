@@ -15,7 +15,6 @@ app = Flask(__name__)
 # Database configuration: PostgreSQL via DATABASE_URL env var, or SQLite fallback
 # ---------------------------------------------------------------------------
 database_url = os.environ.get("DATABASE_URL")
-print("DATABASE_URL =", database_url)
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 if not database_url:
@@ -42,6 +41,12 @@ class Invoice(db.Model):
         db.String,
         default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
+
+
+# Create all tables on startup (runs at import time for Gunicorn,
+# and also when executed directly via python app.py).
+with app.app_context():
+    db.create_all()
 
 
 COMPANY_NAME = "Votre Société"
@@ -818,7 +823,5 @@ def delete_invoice_route(invoice_id):
 
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     os.makedirs("generated", exist_ok=True)
     app.run(debug=True, use_reloader=False)
