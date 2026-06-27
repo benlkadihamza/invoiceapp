@@ -148,6 +148,7 @@ def generate_pdf():
     # Total
     total = data['total']
     remise = data.get('remise', 0)
+    payer = data.get('payer', 0)
     net_total = data.get('net_total', total)
 
     pdf.ln(4)
@@ -168,9 +169,12 @@ def generate_pdf():
         pdf.cell(col_w[3], 10, value, border=1, align="C", fill=True)
         pdf.ln(10)
 
-    if remise > 0:
+    if remise > 0 or payer > 0:
         price_line("Total en DH", f"{total:,.2f} DH".replace(',', ' '))
+    if remise > 0:
         price_line("Remise en DH", f"-{remise:,.2f} DH".replace(',', ' '))
+    if payer > 0:
+        price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
     price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
 
     name = f"{safe_filename(data['client_name'])}.pdf"
@@ -275,11 +279,12 @@ def generate_excel():
     # Total lines
     total = data['total']
     remise = data.get('remise', 0)
+    payer = data.get('payer', 0)
     net_total = data.get('net_total', total)
 
     r = header_row + 1 + len(data['items']) + 1
 
-    if remise > 0:
+    if remise > 0 or payer > 0:
         # Total en DH
         ws.cell(row=r, column=3, value="Total en DH")
         ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
@@ -293,6 +298,7 @@ def generate_excel():
         ws.cell(row=r, column=4).border = thin_border
         r += 1
 
+    if remise > 0:
         # Remise en DH
         ws.cell(row=r, column=3, value="Remise en DH")
         ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
@@ -300,6 +306,20 @@ def generate_excel():
         ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
         ws.cell(row=r, column=3).border = thin_border
         ws.cell(row=r, column=4, value=-remise)
+        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
+        ws.cell(row=r, column=4).fill = gray_fill
+        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
+        ws.cell(row=r, column=4).border = thin_border
+        r += 1
+
+    if payer > 0:
+        # Payer en DH
+        ws.cell(row=r, column=3, value="Payer en DH")
+        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
+        ws.cell(row=r, column=3).fill = gray_fill
+        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+        ws.cell(row=r, column=3).border = thin_border
+        ws.cell(row=r, column=4, value=-payer)
         ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
         ws.cell(row=r, column=4).fill = gray_fill
         ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
