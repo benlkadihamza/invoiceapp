@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     calculateAll();
     document.getElementById('remise-amount').disabled = true;
+    document.getElementById('payer-amount').disabled = true;
 });
 
 document.getElementById('items-body').addEventListener('input', (e) => {
@@ -42,6 +43,15 @@ document.getElementById('remise-toggle').addEventListener('change', () => {
 });
 
 document.getElementById('remise-amount').addEventListener('input', calculateNetTotal);
+
+document.getElementById('payer-toggle').addEventListener('change', () => {
+    const enabled = document.getElementById('payer-toggle').checked;
+    document.getElementById('payer-amount').disabled = !enabled;
+    if (!enabled) document.getElementById('payer-amount').value = 0;
+    calculateNetTotal();
+});
+
+document.getElementById('payer-amount').addEventListener('input', calculateNetTotal);
 
 document.getElementById('btn-add-item').addEventListener('click', () => {
     const tbody = document.getElementById('items-body');
@@ -101,7 +111,10 @@ function calculateNetTotal() {
     const remise = document.getElementById('remise-toggle').checked
         ? (parseFloat(document.getElementById('remise-amount').value) || 0)
         : 0;
-    const net = Math.max(0, base - remise);
+    const payer = document.getElementById('payer-toggle').checked
+        ? (parseFloat(document.getElementById('payer-amount').value) || 0)
+        : 0;
+    const net = Math.max(0, base - remise - payer);
     document.getElementById('net-total').querySelector('small').parentElement.firstChild.textContent = formatNumber(net);
 }
 
@@ -146,7 +159,9 @@ function getFormData() {
     const baseTotal = items.reduce((s, i) => s + i.total, 0);
     const remiseEnabled = document.getElementById('remise-toggle').checked;
     const remiseAmount = remiseEnabled ? (parseFloat(document.getElementById('remise-amount').value) || 0) : 0;
-    const netTotal = Math.max(0, baseTotal - remiseAmount);
+    const payerEnabled = document.getElementById('payer-toggle').checked;
+    const payerAmount = payerEnabled ? (parseFloat(document.getElementById('payer-amount').value) || 0) : 0;
+    const netTotal = Math.max(0, baseTotal - remiseAmount - payerAmount);
 
     return {
         invoice_num: document.getElementById('invoice_num').value.trim() || '001',
@@ -158,6 +173,8 @@ function getFormData() {
         total: baseTotal,
         remise_enabled: remiseEnabled,
         remise: remiseAmount,
+        payer_enabled: payerEnabled,
+        payer: payerAmount,
         net_total: netTotal
     };
 }
