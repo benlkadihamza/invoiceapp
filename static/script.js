@@ -21,17 +21,26 @@ document.getElementById('items-body').addEventListener('input', (e) => {
         calculateTotal();
     }
     if (e.target.classList.contains('item-desc')) {
-        ghostComplete(e.target);
+        filterSuggestions(e.target);
+    }
+});
+
+document.getElementById('items-body').addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('item-desc')) {
+        filterSuggestions(e.target);
     }
 });
 
 document.getElementById('items-body').addEventListener('keydown', (e) => {
-    if (e.target.classList.contains('item-desc') && e.key === 'Tab') {
-        const selStart = e.target.selectionStart;
-        const selEnd = e.target.selectionEnd;
-        if (selEnd > selStart) {
-            e.target.setSelectionRange(selEnd, selEnd);
-        }
+    if (e.target.classList.contains('item-desc') && e.key === 'Escape') {
+        const list = e.target.closest('.desc-wrapper')?.querySelector('.suggestion-list');
+        if (list) list.classList.remove('active');
+    }
+});
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.desc-wrapper')) {
+        document.querySelectorAll('.suggestion-list.active').forEach(el => el.classList.remove('active'));
     }
 });
 
@@ -57,7 +66,7 @@ document.getElementById('btn-add-item').addEventListener('click', () => {
     const tbody = document.getElementById('items-body');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><input type="text" class="item-desc" placeholder="Description" required></td>
+        <td><div class="desc-wrapper"><input type="text" class="item-desc" placeholder="Description" required><div class="suggestion-list"></div></div></td>
         <td><input type="number" class="item-qty" value="1" min="0" step="any" required></td>
         <td><input type="number" class="item-price" value="0" min="0" step="any" required></td>
         <td class="item-total">0.00</td>
@@ -126,23 +135,46 @@ function calculateAll() {
     calculateNetTotal();
 }
 
-function ghostComplete(input) {
-    const val = input.value;
-    const prevLen = parseInt(input.dataset.prevlen || 0);
-    if (val.length < prevLen) {
-        input.dataset.prevlen = val.length;
-        return;
-    }
-    const cursor = input.selectionStart;
-    const typed = val.substring(0, cursor).toLowerCase();
-    const match = SUGGESTIONS.find(s => s.toLowerCase().startsWith(typed));
-    if (match && val.toLowerCase() !== match.toLowerCase()) {
-        input.value = match;
-        input.setSelectionRange(cursor, match.length);
-        input.dataset.prevlen = match.length;
+function filterSuggestions(input) {
+    const wrapper = input.closest('.desc-wrapper');
+    if (!wrapper) return;
+    const list = wrapper.querySelector('.suggestion-list');
+    const val = input.value.trim().toLowerCase();
+
+    list.innerHTML = '';
+
+    const filtered = SUGGESTIONS.filter(s =>
+        s.toLowerCase().includes(val)
+    );
+
+    if (filtered.length === 0 && val === '') {
+        SUGGESTIONS.forEach(s => addSuggestionItem(list, s, input));
     } else {
-        input.dataset.prevlen = val.length;
+        filtered.forEach(s => addSuggestionItem(list, s, input));
     }
+
+    const otherItem = document.createElement('div');
+    otherItem.className = 'suggestion-item suggestion-other';
+    otherItem.textContent = val ? `Autre: "${input.value}"` : 'Autre...';
+    otherItem.addEventListener('click', () => {
+        list.classList.remove('active');
+        input.focus();
+    });
+    list.appendChild(otherItem);
+
+    list.classList.add('active');
+}
+
+function addSuggestionItem(list, text, input) {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.textContent = text;
+    item.addEventListener('click', () => {
+        input.value = text;
+        list.classList.remove('active');
+        input.focus();
+    });
+    list.appendChild(item);
 }
 
 function getFormData() {
