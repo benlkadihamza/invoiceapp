@@ -146,20 +146,24 @@
             <table class="invoices-table">
                 <thead>
                     <tr>
+                        <th>ID</th>
                         <th>N° Facture</th>
                         <th>Client</th>
                         <th>Date</th>
                         <th>Total</th>
+                        <th>Créé le</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for invoice in invoices %}
                         <tr id="invoice-row-{{ invoice.id }}">
-                            <td><strong>{{ invoice.invoice_num }}</strong></td>
+                            <td><strong>{{ invoice.id }}</strong></td>
+                            <td>{{ invoice.invoice_num }}</td>
                             <td>{{ invoice.client_name }}</td>
                             <td>{{ invoice.date }}</td>
                             <td><strong>{{ "{:,.2f}".format(invoice.net_total).replace(',', ' ') }} DH</strong></td>
+                            <td>{{ invoice.created_at }}</td>
                             <td>
                                 <div class="action-btns">
                                     <a href="/?edit={{ invoice.id }}" class="btn-action btn-action-edit" title="Modifier">✏️ Modifier</a>
@@ -203,9 +207,10 @@
             const query = e.target.value.toLowerCase().trim();
             const rows = document.querySelectorAll('.invoices-table tbody tr');
             rows.forEach(row => {
-                const invoiceNum = row.cells[0].textContent.toLowerCase();
-                const clientName = row.cells[1].textContent.toLowerCase();
-                if (invoiceNum.includes(query) || clientName.includes(query)) {
+                const invoiceId  = row.cells[0].textContent.toLowerCase();
+                const invoiceNum = row.cells[1].textContent.toLowerCase();
+                const clientName = row.cells[2].textContent.toLowerCase();
+                if (invoiceId.includes(query) || invoiceNum.includes(query) || clientName.includes(query)) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
