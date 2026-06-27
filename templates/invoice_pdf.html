@@ -216,19 +216,30 @@
                 {% endfor %}
     {% set total = data.get('total', 0) %}
     {% set remise = data.get('remise', 0) %}
+    {% set payer = data.get('payer', 0) %}
     {% set net_total = data.get('net_total', data.total) %}
-    {% if remise > 0 %}
+    {% if remise > 0 or payer > 0 %}
             <tr>
                 <td></td>
                 <td></td>
                 <td style="font-weight:bold; text-align:center;">Total en DH</td>
                 <td style="text-align:center;">{{ "{:,.2f}".format(total)|replace(",", " ") }}</td>
             </tr>
+    {% endif %}
+    {% if remise > 0 %}
             <tr>
                 <td></td>
                 <td></td>
                 <td style="font-weight:bold; text-align:center;">Remise en DH</td>
                 <td style="text-align:center;">-{{ "{:,.2f}".format(remise)|replace(",", " ") }}</td>
+            </tr>
+    {% endif %}
+    {% if payer > 0 %}
+            <tr>
+                <td></td>
+                <td></td>
+                <td style="font-weight:bold; text-align:center;">Payer en DH</td>
+                <td style="text-align:center;">-{{ "{:,.2f}".format(payer)|replace(",", " ") }}</td>
             </tr>
     {% endif %}
             <tr>
