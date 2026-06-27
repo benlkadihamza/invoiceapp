@@ -1,6 +1,7 @@
 import logging
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect as sa_inspect, text as sa_text
 from fpdf import FPDF
 from datetime import datetime
 import openpyxl
@@ -42,10 +43,102 @@ class Invoice(db.Model):
     )
 
 
+def _ensure_no_unique_on_invoice_num():
+    """
+    Automatic migration: remove any UNIQUE constraint on invoice_num.
+
+    The previous schema had ``unique=True`` on the ``invoice_num`` column.
+    SQLite ignores ALTER TABLE DROP CONSTRAINT, so we need to recreate the
+    table.  PostgreSQL can drop the constraint by name.  This function
+    handles both engines and preserves all existing data.
+    """
+    dialect = db.engine.dialect.name
+    inspector = sa_inspect(db.engine)
+
+    # ---- 1. Detect whether a UNIQUE constraint on invoice_num exists ----
+    needs_migration = False
+    constraint_name = None
+
+    try:
+        unique_constraints = inspector.get_unique_constraints("invoices")
+    except Exception:
+        unique_constraints = []
+
+    for uc in unique_constraints:
+        cols = [c.lower() for c in uc.get("column_names", [])]
+        if "invoice_num" in cols:
+            needs_migration = True
+            constraint_name = uc["name"]
+            break
+
+    if not needs_migration:
+        return
+
+    app.logger.info(
+        "Detected legacy UNIQUE constraint on invoice_num — migrating."
+    )
+
+    # ---- 2. Execute the correct strategy per dialect ----
+    if dialect == "postgresql":
+        stmt = sa_text(
+            f'ALTER TABLE invoices DROP CONSTRAINT IF EXISTS "{constraint_name}"'
+        )
+        with db.engine.connect() as conn:
+            conn.execute(stmt)
+            conn.commit()
+        app.logger.info("Dropped UNIQUE constraint on PostgreSQL.")
+        return
+
+    # ---- 3. SQLite — recreate the table without the constraint ----
+    with db.engine.connect() as conn:
+        conn.execute(sa_text("PRAGMA foreign_keys = OFF"))
+        conn.execute(sa_text("BEGIN TRANSACTION"))
+
+        # 3a. Create a new table with the same columns but no UNIQUE on invoice_num
+        conn.execute(sa_text("""
+            CREATE TABLE invoices_migrated (
+                id             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                invoice_num    VARCHAR NOT NULL DEFAULT '',
+                date           VARCHAR NOT NULL DEFAULT '',
+                client_name    VARCHAR NOT NULL DEFAULT '',
+                client_address VARCHAR NOT NULL DEFAULT '',
+                total          FLOAT NOT NULL DEFAULT 0.0,
+                remise         FLOAT NOT NULL DEFAULT 0.0,
+                payer          FLOAT NOT NULL DEFAULT 0.0,
+                net_total      FLOAT NOT NULL DEFAULT 0.0,
+                items          JSON NOT NULL DEFAULT '[]',
+                created_at     VARCHAR
+            )
+        """))
+
+        # 3b. Copy all existing data
+        conn.execute(sa_text("""
+            INSERT INTO invoices_migrated
+                (id, invoice_num, date, client_name, client_address,
+                 total, remise, payer, net_total, items, created_at)
+            SELECT
+                id, invoice_num, date, client_name, client_address,
+                total, remise, payer, net_total, items, created_at
+            FROM invoices
+        """))
+
+        # 3c. Swap tables
+        conn.execute(sa_text("DROP TABLE invoices"))
+        conn.execute(sa_text(
+            "ALTER TABLE invoices_migrated RENAME TO invoices"
+        ))
+
+        conn.execute(sa_text("COMMIT"))
+        conn.execute(sa_text("PRAGMA foreign_keys = ON"))
+
+    app.logger.info("Recreated SQLite table — UNIQUE constraint removed.")
+
+
 # Create all tables on startup (runs at import time for Gunicorn,
 # and also when executed directly via python app.py).
 with app.app_context():
     db.create_all()
+    _ensure_no_unique_on_invoice_num()
 
 
 COMPANY_NAME = "Votre Société"
