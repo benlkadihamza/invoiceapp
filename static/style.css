@@ -197,6 +197,8 @@ form {
 .btn-success:hover { background: #26b863; }
 .btn-info { background: #17a2b8; color: white; }
 .btn-info:hover { background: #138496; }
+.btn-save { background: #C9A84C; color: white; }
+.btn-save:hover { background: #b0913b; }
 
 .totals {
     text-align: right;
