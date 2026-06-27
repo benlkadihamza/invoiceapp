@@ -8,6 +8,8 @@ const SUGGESTIONS = [
     "Tiroir"
 ];
 
+let focusedDesc = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     calculateAll();
@@ -25,8 +27,15 @@ document.getElementById('items-body').addEventListener('input', (e) => {
     }
 });
 
+document.getElementById('items-body').addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('item-desc')) {
+        focusedDesc = e.target;
+    }
+});
+
 document.getElementById('items-body').addEventListener('focusin', (e) => {
     if (e.target.classList.contains('item-desc')) {
+        focusedDesc = e.target;
         filterSuggestions(e.target);
     }
 });
@@ -39,6 +48,11 @@ document.getElementById('items-body').addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+    if (e.target === focusedDesc) {
+        focusedDesc = null;
+        return;
+    }
+    focusedDesc = null;
     if (!e.target.closest('.desc-wrapper')) {
         document.querySelectorAll('.suggestion-list.active').forEach(el => el.classList.remove('active'));
     }
@@ -73,7 +87,15 @@ document.getElementById('btn-add-item').addEventListener('click', () => {
         <td><button type="button" class="btn-remove" title="Supprimer">&times;</button></td>
     `;
     tbody.appendChild(tr);
-    tr.querySelector('.item-desc').focus();
+    
+    const descInput = tr.querySelector('.item-desc');
+    // Focus the input and trigger suggestions
+    descInput.focus();
+    // Manually trigger the suggestion filter after a tiny delay to ensure DOM is ready
+    setTimeout(() => {
+        filterSuggestions(descInput);
+    }, 50);
+    
     tr.querySelectorAll('.item-qty, .item-price').forEach(el => {
         el.addEventListener('input', () => {
             calculateRow(tr);
@@ -147,20 +169,27 @@ function filterSuggestions(input) {
         s.toLowerCase().includes(val)
     );
 
+    // Show all suggestions when input is empty or no matches found
     if (filtered.length === 0 && val === '') {
         SUGGESTIONS.forEach(s => addSuggestionItem(list, s, input));
-    } else {
+    } else if (filtered.length > 0) {
         filtered.forEach(s => addSuggestionItem(list, s, input));
+    } else {
+        // If no matches, show all suggestions
+        SUGGESTIONS.forEach(s => addSuggestionItem(list, s, input));
     }
 
-    const otherItem = document.createElement('div');
-    otherItem.className = 'suggestion-item suggestion-other';
-    otherItem.textContent = val ? `Autre: "${input.value}"` : 'Autre...';
-    otherItem.addEventListener('click', () => {
-        list.classList.remove('active');
-        input.focus();
-    });
-    list.appendChild(otherItem);
+    // Only add "Autre" option if there's text in the input
+    if (val) {
+        const otherItem = document.createElement('div');
+        otherItem.className = 'suggestion-item suggestion-other';
+        otherItem.textContent = val ? `Autre: "${input.value}"` : 'Autre...';
+        otherItem.addEventListener('click', () => {
+            list.classList.remove('active');
+            input.focus();
+        });
+        list.appendChild(otherItem);
+    }
 
     list.classList.add('active');
 }
