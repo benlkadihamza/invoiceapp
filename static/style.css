@@ -232,6 +232,52 @@ form {
     color: #27ae60;
 }
 
+.payer-section {
+    margin-top: 20px;
+    padding: 14px 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+#payer-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#payer-input-wrap label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+}
+
+#payer-input-wrap input {
+    width: 100px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: left;
+}
+
+#payer-input-wrap input:focus {
+    outline: none;
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 3px rgba(231,76,60,0.15);
+}
+
+.payer-section .switch-text {
+    font-weight: 600;
+    color: #e74c3c;
+}
+
+.payer-section .switch-label input:checked ~ .switch-text {
+    color: #27ae60;
+}
+
 .actions {
     display: flex;
     gap: 12px;
