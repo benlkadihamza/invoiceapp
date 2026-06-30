@@ -1,5 +1,5 @@
 import logging
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect as sa_inspect, text as sa_text
 from fpdf import FPDF
@@ -8,6 +8,8 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 import os, re, tempfile, json
 from io import BytesIO
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -21,6 +23,7 @@ if not database_url:
     database_url = "sqlite:///invoice.db"
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24).hex())
 
 db = SQLAlchemy(app)
 
@@ -37,6 +40,17 @@ class Invoice(db.Model):
     payer = db.Column(db.Float, nullable=False, default=0.0)
     net_total = db.Column(db.Float, nullable=False, default=0.0)
     items = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(
+        db.String,
+        default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+
+
+class User(db.Model):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
     created_at = db.Column(
         db.String,
         default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -134,11 +148,27 @@ def _ensure_no_unique_on_invoice_num():
     app.logger.info("Recreated SQLite table — UNIQUE constraint removed.")
 
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 # Create all tables on startup (runs at import time for Gunicorn,
 # and also when executed directly via python app.py).
 with app.app_context():
     db.create_all()
     _ensure_no_unique_on_invoice_num()
+    if User.query.count() == 0:
+        admin = User(
+            username="admin",
+            password_hash=generate_password_hash("admin123")
+        )
+        db.session.add(admin)
+        db.session.commit()
 
 
 COMPANY_NAME = "Votre Société"
@@ -284,11 +314,13 @@ def safe_filename(name):
 
 
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 
 @app.route("/generate_pdf", methods=["POST"])
+@login_required
 def generate_pdf():
     data = request.get_json()
 
@@ -369,6 +401,7 @@ def generate_pdf():
 
 
 @app.route("/generate_excel", methods=["POST"])
+@login_required
 def generate_excel():
     data = request.get_json()
     wb = openpyxl.Workbook()
@@ -554,12 +587,14 @@ def generate_excel():
 
 
 @app.route("/preview", methods=["POST"])
+@login_required
 def preview():
     data = request.get_json()
     return render_template("invoice_pdf.html", data=data, company_name=COMPANY_NAME, company_address=COMPANY_ADDRESS)
 
 
 @app.route("/save_invoice", methods=["POST"])
+@login_required
 def save_invoice_route():
     data = request.get_json()
     try:
@@ -592,6 +627,7 @@ def get_invoice_by_id(invoice_id):
 
 
 @app.route("/invoices/<int:invoice_id>/json")
+@login_required
 def get_invoice_json(invoice_id):
     """Return a single invoice as JSON — used by the frontend edit form."""
     data = get_invoice_by_id(invoice_id)
@@ -601,6 +637,7 @@ def get_invoice_json(invoice_id):
 
 
 @app.route("/invoices")
+@login_required
 def invoices_list():
     try:
         rows = Invoice.query.order_by(Invoice.id.desc()).all()
@@ -621,6 +658,7 @@ def invoices_list():
 
 
 @app.route("/invoices/<int:invoice_id>/pdf")
+@login_required
 def download_saved_pdf(invoice_id):
     data = get_invoice_by_id(invoice_id)
     if not data:
@@ -702,6 +740,7 @@ def download_saved_pdf(invoice_id):
 
 
 @app.route("/invoices/<int:invoice_id>/excel")
+@login_required
 def download_saved_excel(invoice_id):
     data = get_invoice_by_id(invoice_id)
     if not data:
@@ -889,6 +928,7 @@ def download_saved_excel(invoice_id):
 
 
 @app.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
+@login_required
 def delete_invoice_route(invoice_id):
     try:
         invoice = db.session.get(Invoice, invoice_id)
@@ -899,6 +939,53 @@ def delete_invoice_route(invoice_id):
     except Exception:
         db.session.rollback()
         return jsonify({"error": "Erreur lors de la suppression."}), 500
+
+
+# ---------------------------------------------------------------------------
+# Authentication routes
+# ---------------------------------------------------------------------------
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if "user_id" in session:
+        return redirect(url_for("index"))
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password_hash, password):
+            session["user_id"] = user.id
+            session["username"] = user.username
+            return redirect(url_for("index"))
+        return render_template("login.html", error="Nom d'utilisateur ou mot de passe incorrect.")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        current = request.form.get("current_password", "")
+        new_pass = request.form.get("new_password", "")
+        confirm = request.form.get("confirm_password", "")
+        user = db.session.get(User, session["user_id"])
+        if not user or not check_password_hash(user.password_hash, current):
+            return render_template("change_password.html", error="Mot de passe actuel incorrect.")
+        if new_pass != confirm:
+            return render_template("change_password.html", error="Les nouveaux mots de passe ne correspondent pas.")
+        if len(new_pass) < 8:
+            return render_template("change_password.html", error="Le mot de passe doit contenir au moins 8 caractères.")
+        user.password_hash = generate_password_hash(new_pass)
+        db.session.commit()
+        return render_template("change_password.html", success="Mot de passe modifié avec succès.")
+    return render_template("change_password.html")
 
 
 if __name__ == "__main__":
