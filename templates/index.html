@@ -1,133 +1,125 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Générateur de Factures</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <header style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <h1 style="margin:0;">Générateur de Factures</h1>
-            <a href="/invoices" style="text-decoration:none; background:#C9A84C; color:white; padding:10px 22px; border-radius:6px; font-size:14px; font-weight:600; transition:background 0.2s;" onmouseover="this.style.background='#b8923e'" onmouseout="this.style.background='#C9A84C'">📋 Toutes les Factures</a>
-        </header>
+{% extends "base.html" %}
+{% block title %}Générateur de Factures{% endblock %}
+{% block content %}
+<header style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <h1 style="margin:0;">Générateur de Factures</h1>
+    <a href="/invoices" style="text-decoration:none; background:#C9A84C; color:white; padding:10px 22px; border-radius:6px; font-size:14px; font-weight:600; transition:background 0.2s;" onmouseover="this.style.background='#b8923e'" onmouseout="this.style.background='#C9A84C'">📋 Toutes les Factures</a>
+</header>
 
-        <form id="invoice-form">
-            <section class="form-section">
-                <h2>Informations de la facture</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="invoice_num">N° Facture</label>
-                        <input type="text" id="invoice_num" name="invoice_num" value="001" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="date">Date</label>
-                        <input type="date" id="date" name="date" required>
-                    </div>
-                </div>
-                <div class="form-row" style="margin-top:12px;">
-                    <label class="switch-label">
-                        <input type="checkbox" id="show-facture-num">
-                        <span class="switch-slider"></span>
-                        <span class="switch-text">Afficher N° Facture</span>
-                    </label>
-                </div>
-            </section>
-
-            <section class="form-section">
-                <h2>Client</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="client_name">Nom du client</label>
-                        <input type="text" id="client_name" name="client_name" placeholder="Client" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="client_address">Adresse du client</label>
-                        <input type="text" id="client_address" name="client_address" placeholder="Adresse...">
-                    </div>
-                </div>
-            </section>
-
-            <section class="form-section">
-                <h2>Articles</h2>
-                <div class="table-wrapper">
-                    <table id="items-table">
-                        <thead>
-                            <tr>
-                                <th>Description</th>
-                                <th>Quantité</th>
-                                <th>Prix Unitaire (DH)</th>
-                                <th>Montant (DH)</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="items-body">
-                            <tr>
-                                <td><div class="desc-wrapper"><input type="text" class="item-desc" placeholder="Description" required><div class="suggestion-list"></div></div></td>
-                                <td><input type="number" class="item-qty" value="1" min="0" step="any" required></td>
-                                <td><input type="number" class="item-price" value="0" min="0" step="any" required></td>
-                                <td class="item-total">0.00</td>
-                                <td><button type="button" class="btn-remove" title="Supprimer">&times;</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <button type="button" id="btn-add-item" class="btn btn-secondary">+ Ajouter un article</button>
-            </section>
-
-            <section class="form-section totals">
-                <div class="total-line">
-                    <span>Total en DH <small>(c'est le total d'argent)</small></span>
-                    <span id="grand-total">0.00 <small>DH</small></span>
-                </div>
-                <div class="remise-section">
-                    <label class="switch-label">
-                        <input type="checkbox" id="remise-toggle">
-                        <span class="switch-slider"></span>
-                        <span class="switch-text">Remise</span>
-                    </label>
-                    <div id="remise-input-wrap">
-                        <label for="remise-amount">Remise en DH:</label>
-                        <input type="number" id="remise-amount" value="0" min="0" step="any" disabled>
-                    </div>
-                </div>
-                <div class="payer-section">
-                    <label class="switch-label">
-                        <input type="checkbox" id="payer-toggle">
-                        <span class="switch-slider"></span>
-                        <span class="switch-text">Payer en DH</span>
-                    </label>
-                    <div id="payer-input-wrap">
-                        <label for="payer-amount">Payer en DH:</label>
-                        <input type="number" id="payer-amount" value="0" min="0" step="any" disabled>
-                    </div>
-                </div>
-                <div class="total-line final">
-                    <span>Total à payer en DH</span>
-                    <span id="net-total">0.00 <small>DH</small></span>
-                </div>
-            </section>
-
-            <div class="actions">
-                <button type="button" id="btn-preview" class="btn btn-primary">Aperçu</button>
-                <button type="button" id="btn-pdf" class="btn btn-success">Télécharger PDF</button>
-                <button type="button" id="btn-excel" class="btn btn-info">Télécharger Excel</button>
-                <button type="button" id="btn-save" class="btn btn-save">Enregistrer</button>
+<form id="invoice-form">
+    <section class="form-section">
+        <h2>Informations de la facture</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="invoice_num">N° Facture</label>
+                <input type="text" id="invoice_num" name="invoice_num" value="001" required>
             </div>
-        </form>
-
-        <div id="preview-modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Aperçu de la facture</h2>
-                    <span class="modal-close">&times;</span>
-                </div>
-                <div class="modal-body" id="preview-body"></div>
+            <div class="form-group">
+                <label for="date">Date</label>
+                <input type="date" id="date" name="date" required>
             </div>
         </div>
-    </div>
+        <div class="form-row" style="margin-top:12px;">
+            <label class="switch-label">
+                <input type="checkbox" id="show-facture-num">
+                <span class="switch-slider"></span>
+                <span class="switch-text">Afficher N° Facture</span>
+            </label>
+        </div>
+    </section>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-</body>
-</html>
+    <section class="form-section">
+        <h2>Client</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="client_name">Nom du client</label>
+                <input type="text" id="client_name" name="client_name" placeholder="Client" required>
+            </div>
+            <div class="form-group">
+                <label for="client_address">Adresse du client</label>
+                <input type="text" id="client_address" name="client_address" placeholder="Adresse...">
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <h2>Articles</h2>
+        <div class="table-wrapper">
+            <table id="items-table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Quantité</th>
+                        <th>Prix Unitaire (DH)</th>
+                        <th>Montant (DH)</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="items-body">
+                    <tr>
+                        <td><div class="desc-wrapper"><input type="text" class="item-desc" placeholder="Description" required><div class="suggestion-list"></div></div></td>
+                        <td><input type="number" class="item-qty" value="1" min="0" step="any" required></td>
+                        <td><input type="number" class="item-price" value="0" min="0" step="any" required></td>
+                        <td class="item-total">0.00</td>
+                        <td><button type="button" class="btn-remove" title="Supprimer">&times;</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <button type="button" id="btn-add-item" class="btn btn-secondary">+ Ajouter un article</button>
+    </section>
+
+    <section class="form-section totals">
+        <div class="total-line">
+            <span>Total en DH <small>(c'est le total d'argent)</small></span>
+            <span id="grand-total">0.00 <small>DH</small></span>
+        </div>
+        <div class="remise-section">
+            <label class="switch-label">
+                <input type="checkbox" id="remise-toggle">
+                <span class="switch-slider"></span>
+                <span class="switch-text">Remise</span>
+            </label>
+            <div id="remise-input-wrap">
+                <label for="remise-amount">Remise en DH:</label>
+                <input type="number" id="remise-amount" value="0" min="0" step="any" disabled>
+            </div>
+        </div>
+        <div class="payer-section">
+            <label class="switch-label">
+                <input type="checkbox" id="payer-toggle">
+                <span class="switch-slider"></span>
+                <span class="switch-text">Payer en DH</span>
+            </label>
+            <div id="payer-input-wrap">
+                <label for="payer-amount">Payer en DH:</label>
+                <input type="number" id="payer-amount" value="0" min="0" step="any" disabled>
+            </div>
+        </div>
+        <div class="total-line final">
+            <span>Total à payer en DH</span>
+            <span id="net-total">0.00 <small>DH</small></span>
+        </div>
+    </section>
+
+    <div class="actions">
+        <button type="button" id="btn-preview" class="btn btn-primary">Aperçu</button>
+        <button type="button" id="btn-pdf" class="btn btn-success">Télécharger PDF</button>
+        <button type="button" id="btn-excel" class="btn btn-info">Télécharger Excel</button>
+        <button type="button" id="btn-save" class="btn btn-save">Enregistrer</button>
+    </div>
+</form>
+
+<div id="preview-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Aperçu de la facture</h2>
+            <span class="modal-close">&times;</span>
+        </div>
+        <div class="modal-body" id="preview-body"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+{% endblock %}
