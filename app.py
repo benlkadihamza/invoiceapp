@@ -40,6 +40,7 @@ class Invoice(db.Model):
     payer = db.Column(db.Float, nullable=False, default=0.0)
     net_total = db.Column(db.Float, nullable=False, default=0.0)
     items = db.Column(db.JSON, nullable=False, default=list)
+    show_facture_num = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(
         db.String,
         default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -148,6 +149,37 @@ def _ensure_no_unique_on_invoice_num():
     app.logger.info("Recreated SQLite table — UNIQUE constraint removed.")
 
 
+def _ensure_show_facture_num_column():
+    """
+    Automatic migration: add show_facture_num boolean column if missing.
+    Existing invoices default to False.
+    """
+    dialect = db.engine.dialect.name
+    inspector = sa_inspect(db.engine)
+    columns = {c["name"] for c in inspector.get_columns("invoices")}
+
+    if "show_facture_num" in columns:
+        return
+
+    if dialect == "postgresql":
+        with db.engine.connect() as conn:
+            conn.execute(sa_text(
+                "ALTER TABLE invoices ADD COLUMN show_facture_num BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            conn.commit()
+    else:
+        with db.engine.connect() as conn:
+            conn.execute(sa_text("PRAGMA foreign_keys = OFF"))
+            conn.execute(sa_text("BEGIN"))
+            conn.execute(sa_text(
+                "ALTER TABLE invoices ADD COLUMN show_facture_num BOOLEAN NOT NULL DEFAULT 0"
+            ))
+            conn.execute(sa_text("COMMIT"))
+            conn.execute(sa_text("PRAGMA foreign_keys = ON"))
+
+    app.logger.info("Added show_facture_num column to invoices table.")
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -162,6 +194,7 @@ def login_required(f):
 with app.app_context():
     db.create_all()
     _ensure_no_unique_on_invoice_num()
+    _ensure_show_facture_num_column()
     if User.query.count() == 0:
         admin = User(
             username="admin",
@@ -201,6 +234,7 @@ def save_invoice(data):
     payer          = data.get("payer", 0.0)
     net_total      = data.get("net_total", 0.0)
     items          = data.get("items", [])
+    show_facture_num = bool(data.get("show_facture_num", False))
 
     existing_id = data.get("id")
 
@@ -216,6 +250,7 @@ def save_invoice(data):
             invoice.payer = payer
             invoice.net_total = net_total
             invoice.items = items
+            invoice.show_facture_num = show_facture_num
         invoice_id = existing_id
     else:
         invoice = Invoice(
@@ -227,7 +262,8 @@ def save_invoice(data):
             remise=remise,
             payer=payer,
             net_total=net_total,
-            items=items
+            items=items,
+            show_facture_num=show_facture_num
         )
         db.session.add(invoice)
         db.session.flush()
@@ -622,7 +658,8 @@ def get_invoice_by_id(invoice_id):
         "remise": invoice.remise,
         "payer": invoice.payer,
         "net_total": invoice.net_total,
-        "items": invoice.items
+        "items": invoice.items,
+        "show_facture_num": invoice.show_facture_num
     }
 
 
@@ -668,7 +705,7 @@ def download_saved_pdf(invoice_id):
     pdf._client_name = data.get("client_name", "")
     pdf._date = data.get("date", "")
     pdf._facture_num = data.get("invoice_num", "")
-    pdf._show_facture_num = True
+    pdf._show_facture_num = bool(data.get("show_facture_num", False))
     pdf.set_auto_page_break(auto=True, margin=30)
     pdf.add_page()
 
