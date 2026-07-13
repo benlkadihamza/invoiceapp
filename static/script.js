@@ -267,14 +267,26 @@ function createAcDropdown() {
 function positionDropdown(input) {
     if (!input || !acDropdown) return;
     const rect = input.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > window.innerHeight ||
-        rect.right < 0 || rect.left > window.innerWidth) {
-        closeAcDropdown();
-        return;
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile) {
+        // Mobile: always position below the input, never close early.
+        // The virtual keyboard changes window.innerHeight, so the
+        // off-screen check below would wrongly close the dropdown.
+        acDropdown.style.top = rect.bottom + 'px';
+        acDropdown.style.left = rect.left + 'px';
+        acDropdown.style.width = rect.width + 'px';
+    } else {
+        // Desktop: close if the input has scrolled out of view.
+        if (rect.bottom < 0 || rect.top > window.innerHeight ||
+            rect.right < 0 || rect.left > window.innerWidth) {
+            closeAcDropdown();
+            return;
+        }
+        acDropdown.style.top = rect.bottom + 'px';
+        acDropdown.style.left = rect.left + 'px';
+        acDropdown.style.width = rect.width + 'px';
     }
-    acDropdown.style.top = rect.bottom + 'px';
-    acDropdown.style.left = rect.left + 'px';
-    acDropdown.style.width = rect.width + 'px';
 }
 
 function closeAcDropdown() {
