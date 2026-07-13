@@ -243,6 +243,7 @@ function filterSuggestions(input) {
     }
 
     acDropdown.classList.add('active');
+    input.classList.add('ac-open');
     positionDropdown(input);
 }
 
@@ -291,6 +292,7 @@ function positionDropdown(input) {
 
 function closeAcDropdown() {
     if (acDropdown) acDropdown.classList.remove('active');
+    if (acTarget) acTarget.classList.remove('ac-open');
     acTarget = null;
 }
 
