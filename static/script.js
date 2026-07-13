@@ -278,6 +278,9 @@ async function loadInvoiceForEdit(invoiceId) {
         document.getElementById('client_name').value    = inv.client_name    || '';
         document.getElementById('client_address').value = inv.client_address || '';
 
+        // ── Show invoice number toggle ────────────────────────────────────
+        document.getElementById('show-facture-num').checked = !!inv.show_facture_num;
+
         // ── Items ──────────────────────────────────────────────────────────
         const tbody   = document.getElementById('items-body');
         tbody.innerHTML = '';  // clear existing rows
