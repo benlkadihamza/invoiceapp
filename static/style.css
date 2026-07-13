@@ -137,6 +137,26 @@ form {
     display: block;
 }
 
+.ac-dropdown {
+    display: none;
+    position: fixed;
+    z-index: 999999;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 0 0 6px 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.ac-dropdown.active {
+    display: block;
+}
+
+.suggestion-item.selected {
+    background: #e8f0fe;
+}
+
 .suggestion-item {
     padding: 8px 12px;
     font-size: 13px;
