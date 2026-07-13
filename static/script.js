@@ -9,6 +9,8 @@ const SUGGESTIONS = [
 ];
 
 let focusedDesc = null;
+let acDropdown = null;
+let acTarget = null;
 
 // Tracks the DB id of the invoice currently loaded in the form.
 // null = creating a new invoice; number = editing an existing invoice.
@@ -20,11 +22,25 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('remise-amount').disabled = true;
     document.getElementById('payer-amount').disabled = true;
 
+    createAcDropdown();
+
     // If the page was opened with ?edit=<id>, load that invoice into the form.
     const params = new URLSearchParams(window.location.search);
     const editId = params.get('edit');
     if (editId) {
         loadInvoiceForEdit(parseInt(editId, 10));
+    }
+});
+
+window.addEventListener('scroll', () => {
+    if (acTarget && acDropdown && acDropdown.classList.contains('active')) {
+        positionDropdown(acTarget);
+    }
+}, { passive: true });
+
+window.addEventListener('resize', () => {
+    if (acTarget && acDropdown && acDropdown.classList.contains('active')) {
+        positionDropdown(acTarget);
     }
 });
 
@@ -52,9 +68,38 @@ document.getElementById('items-body').addEventListener('focusin', (e) => {
 });
 
 document.getElementById('items-body').addEventListener('keydown', (e) => {
-    if (e.target.classList.contains('item-desc') && e.key === 'Escape') {
-        const list = e.target.closest('.desc-wrapper')?.querySelector('.suggestion-list');
-        if (list) list.classList.remove('active');
+    if (!e.target.classList.contains('item-desc')) return;
+
+    if (e.key === 'Escape') {
+        closeAcDropdown();
+        return;
+    }
+
+    if (!acDropdown || !acDropdown.classList.contains('active')) return;
+
+    const items = acDropdown.querySelectorAll('.suggestion-item');
+    if (!items.length) return;
+
+    const currentIndex = Array.from(items).indexOf(acDropdown.querySelector('.suggestion-item.selected'));
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+        items.forEach(i => i.classList.remove('selected'));
+        items[next].classList.add('selected');
+        items[next].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+        items.forEach(i => i.classList.remove('selected'));
+        items[prev].classList.add('selected');
+        items[prev].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+        const selected = acDropdown.querySelector('.suggestion-item.selected');
+        if (selected) {
+            e.preventDefault();
+            selected.click();
+        }
     }
 });
 
@@ -64,8 +109,8 @@ document.addEventListener('click', (e) => {
         return;
     }
     focusedDesc = null;
-    if (!e.target.closest('.desc-wrapper')) {
-        document.querySelectorAll('.suggestion-list.active').forEach(el => el.classList.remove('active'));
+    if (!e.target.closest('.ac-dropdown') && e.target !== acTarget) {
+        closeAcDropdown();
     }
 });
 
@@ -169,52 +214,72 @@ function calculateAll() {
 }
 
 function filterSuggestions(input) {
-    const wrapper = input.closest('.desc-wrapper');
-    if (!wrapper) return;
-    const list = wrapper.querySelector('.suggestion-list');
+    acTarget = input;
     const val = input.value.trim().toLowerCase();
 
-    list.innerHTML = '';
+    acDropdown.innerHTML = '';
 
     const filtered = SUGGESTIONS.filter(s =>
         s.toLowerCase().includes(val)
     );
 
-    // Show all suggestions when input is empty or no matches found
     if (filtered.length === 0 && val === '') {
-        SUGGESTIONS.forEach(s => addSuggestionItem(list, s, input));
+        SUGGESTIONS.forEach(s => addAcItem(s, input));
     } else if (filtered.length > 0) {
-        filtered.forEach(s => addSuggestionItem(list, s, input));
+        filtered.forEach(s => addAcItem(s, input));
     } else {
-        // If no matches, show all suggestions
-        SUGGESTIONS.forEach(s => addSuggestionItem(list, s, input));
+        SUGGESTIONS.forEach(s => addAcItem(s, input));
     }
 
-    // Only add "Autre" option if there's text in the input
     if (val) {
         const otherItem = document.createElement('div');
         otherItem.className = 'suggestion-item suggestion-other';
-        otherItem.textContent = val ? `Autre: "${input.value}"` : 'Autre...';
+        otherItem.textContent = `Autre: "${input.value}"`;
         otherItem.addEventListener('click', () => {
-            list.classList.remove('active');
+            closeAcDropdown();
             input.focus();
         });
-        list.appendChild(otherItem);
+        acDropdown.appendChild(otherItem);
     }
 
-    list.classList.add('active');
+    acDropdown.classList.add('active');
+    positionDropdown(input);
 }
 
-function addSuggestionItem(list, text, input) {
+function addAcItem(text, input) {
     const item = document.createElement('div');
     item.className = 'suggestion-item';
     item.textContent = text;
     item.addEventListener('click', () => {
         input.value = text;
-        list.classList.remove('active');
+        closeAcDropdown();
         input.focus();
     });
-    list.appendChild(item);
+    acDropdown.appendChild(item);
+}
+
+function createAcDropdown() {
+    acDropdown = document.createElement('div');
+    acDropdown.className = 'ac-dropdown';
+    document.body.appendChild(acDropdown);
+}
+
+function positionDropdown(input) {
+    if (!input || !acDropdown) return;
+    const rect = input.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight ||
+        rect.right < 0 || rect.left > window.innerWidth) {
+        closeAcDropdown();
+        return;
+    }
+    acDropdown.style.top = rect.bottom + 'px';
+    acDropdown.style.left = rect.left + 'px';
+    acDropdown.style.width = rect.width + 'px';
+}
+
+function closeAcDropdown() {
+    if (acDropdown) acDropdown.classList.remove('active');
+    acTarget = null;
 }
 
 function getFormData() {
