@@ -1,5 +1,5 @@
 import logging
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect as sa_inspect, text as sa_text
 from fpdf import FPDF
@@ -981,6 +981,16 @@ def delete_invoice_route(invoice_id):
 # ---------------------------------------------------------------------------
 # Authentication routes
 # ---------------------------------------------------------------------------
+
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+
+@app.route('/offline')
+def offline():
+    return render_template('offline.html')
 
 
 @app.route("/login", methods=["GET", "POST"])
