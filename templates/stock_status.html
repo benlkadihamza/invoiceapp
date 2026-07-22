@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}État du Stock - FinanceApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-activity me-2"></i>État du Stock</h2>
+        <small class="text-muted">Aperçu en temps réel de l'état de l'inventaire</small>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-danger" onclick="exportPDF()">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Télécharger PDF
+        </button>
+        <button class="btn btn-outline-success" onclick="exportExcel()">
+            <i class="bi bi-file-earmark-excel me-1"></i>Télécharger Excel
+        </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-primary" id="stat-total">{{ total_products }}</div>
+            <small class="text-muted fw-semibold">Produits Total</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-success" id="stat-stock">{{ total_stock }}</div>
+            <small class="text-muted fw-semibold">Stock Total</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-warning" id="stat-low">{{ low_stock }}</div>
+            <small class="text-muted fw-semibold">Stock Bas</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-danger" id="stat-out">{{ out_of_stock }}</div>
+            <small class="text-muted fw-semibold">Rupture</small>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <input type="text" id="search-input" class="form-control" placeholder="Rechercher par nom de produit...">
+            </div>
+            <div class="col-md-6 d-flex justify-content-md-end gap-2">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary filter-btn active" data-filter="all" onclick="setFilter('all', this)">Tous</button>
+                    <button type="button" class="btn btn-outline-success filter-btn" data-filter="in-stock" onclick="setFilter('in-stock', this)">En Stock</button>
+                    <button type="button" class="btn btn-outline-warning filter-btn" data-filter="low-stock" onclick="setFilter('low-stock', this)">Stock Bas</button>
+                    <button type="button" class="btn btn-outline-danger filter-btn" data-filter="out-of-stock" onclick="setFilter('out-of-stock', this)">Rupture</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 70px;">Photo</th>
+                    <th>Produit</th>
+                    <th class="text-center">Stock</th>
+                    <th class="text-center">Statut</th>
+                    <th class="text-center d-none d-md-table-cell">Dernière mise à jour</th>
+                </tr>
+            </thead>
+            <tbody id="status-tbody">
+                {% for row in rows %}
+                <tr class="row-{{ row.status_class }}" data-status="{{ row.status_class }}" data-title="{{ row.title|lower }}" data-stock="{{ row.stock_quantity }}" data-updated="{{ row.updated_at }}">
+                    <td>
+                        {% if row.photo %}
+                        <img src="{{ url_for('static', filename='uploads/products/' + row.photo) }}" class="rounded" style="width: 45px; height: 45px; object-fit: cover;" alt="{{ row.title }}">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center text-muted" style="width: 45px; height: 45px;">
+                            <i class="bi bi-box"></i>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold">{{ row.title }}</td>
+                    <td class="text-center fw-bold">{{ row.stock_quantity }}</td>
+                    <td class="text-center">
+                        {% if row.status == 'OUT OF STOCK' %}
+                            <span class="badge bg-danger">Rupture</span>
+                        {% elif row.status == 'LOW STOCK' %}
+                            <span class="badge bg-warning text-dark">Stock Bas</span>
+                        {% else %}
+                            <span class="badge bg-success">En Stock</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center text-muted d-none d-md-table-cell"><small>{{ row.updated_at[:16] if row.updated_at else '-' }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div id="empty-state" class="card border-0 shadow-sm text-center p-4 mt-3" style="display: none;">
+    <p class="text-muted mb-0">Aucun produit ne correspond à votre filtre.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    function applyFiltersAndSort() {
+        const rows = document.querySelectorAll('#status-tbody tr');
+        let visible = 0;
+        rows.forEach(function(row) {
+            const status = row.getAttribute('data-status');
+            const title = row.getAttribute('data-title') || '';
+            const matchesFilter = (currentFilter === 'all' || status === currentFilter);
+            const matchesSearch = title.includes(searchQuery);
+            if (matchesFilter && matchesSearch) {
+                row.style.display = '';
+                visible++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('empty-state').style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    function setFilter(filter, el) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+        el.classList.add('active');
+        applyFiltersAndSort();
+    }
+
+    document.getElementById('search-input').addEventListener('input', function(e) {
+        searchQuery = e.target.value.toLowerCase().trim();
+        applyFiltersAndSort();
+    });
+
+    function exportPDF() {
+        fetch('{{ url_for("stock.stock_status_pdf") }}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() }
+        })
+        .then(function(res) { if (!res.ok) throw new Error(); return res.blob(); })
+        .then(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'etat_stock.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }).catch(function() { alert('Erreur lors de l\'export PDF.'); });
+    }
+
+    function exportExcel() {
+        fetch('{{ url_for("stock.stock_status_excel") }}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() }
+        })
+        .then(function(res) { if (!res.ok) throw new Error(); return res.blob(); })
+        .then(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'etat_stock.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }).catch(function() { alert('Erreur lors de l\'export Excel.'); });
+    }
+
+    function refreshTable() {
+        fetch('{{ url_for("stock.api_stock_data") }}')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                document.getElementById('stat-total').textContent = data.total_products;
+                document.getElementById('stat-stock').textContent = data.total_stock;
+                document.getElementById('stat-low').textContent = data.low_stock;
+                document.getElementById('stat-out').textContent = data.out_of_stock;
+            }).catch(function() {});
+    }
+
+    setInterval(refreshTable, 10000);
+</script>
+{% endblock %}
