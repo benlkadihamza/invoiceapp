@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord - FinanceApp{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2"></i>Tableau de bord</h4>
+    <small class="text-muted">Bienvenue, {{ current_user.username }}</small>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card {% if current_balance >= 0 %}border-start border-success border-4{% else %}border-start border-danger border-4{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Solde actuel</p>
+                        <h5 class="fw-bold mb-0 {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(current_balance) }} DH
+                        </h5>
+                    </div>
+                    <span class="badge bg-{% if current_balance >= 0 %}success{% else %}danger{% endif %} bg-opacity-10 p-2">
+                        <i class="bi bi-wallet2 fs-5 text-{% if current_balance >= 0 %}success{% else %}danger{% endif %}"></i>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-primary border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Total Revenus</p>
+                        <h5 class="fw-bold mb-0 text-primary">{{ "{:,.2f}".format(total_income) }} DH</h5>
+                    </div>
+                    <span class="badge bg-primary bg-opacity-10 p-2">
+                        <i class="bi bi-arrow-down-circle fs-5 text-primary"></i>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-danger border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Total Dépenses</p>
+                        <h5 class="fw-bold mb-0 text-danger">{{ "{:,.2f}".format(total_expense) }} DH</h5>
+                    </div>
+                    <span class="badge bg-danger bg-opacity-10 p-2">
+                        <i class="bi bi-arrow-up-circle fs-5 text-danger"></i>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-info border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Net mensuel</p>
+                        <h5 class="fw-bold mb-0 {% if monthly_net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(monthly_net) }} DH
+                        </h5>
+                    </div>
+                    <span class="badge bg-info bg-opacity-10 p-2">
+                        <i class="bi bi-graph-up-arrow fs-5 text-info"></i>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-warning border-4">
+            <div class="card-body">
+                <p class="text-muted small mb-1">Aujourd'hui</p>
+                <div class="small">
+                    <span class="text-success"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(today_income) }}</span>
+                    <span class="text-danger ms-2"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(today_expense) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-secondary border-4">
+            <div class="card-body">
+                <p class="text-muted small mb-1">Cette année</p>
+                <div class="small">
+                    <span class="text-success"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(year_income) }}</span>
+                    <span class="text-danger ms-2"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(year_expense) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart me-2"></i>Revenus vs Dépenses mensuels</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h6 class="fw-bold mb-0"><i class="bi bi-activity me-2"></i>Évolution du solde</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="balanceChart" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between">
+                <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i>Dernières transactions</h6>
+                <a href="{{ url_for('transactions.index') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <tbody>
+                            {% for item in recent_transactions %}
+                            {% set t = item.transaction %}
+                            <tr>
+                                <td class="ps-3">
+                                    <small class="text-muted">{{ t.formatted_date }}</small><br>
+                                    <span class="fw-semibold">{{ t.description[:25] }}</span>
+                                </td>
+                                <td class="text-end pe-3">
+                                    {% if t.income > 0 %}
+                                        <span class="text-success fw-bold">+{{ "{:,.0f}".format(t.income) }}</span>
+                                    {% else %}
+                                        <span class="text-danger fw-bold">-{{ "{:,.0f}".format(t.expense) }}</span>
+                                    {% endif %}
+                                    <br><small class="text-muted">{{ "{:,.0f}".format(item.balance) }} DH</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not recent_transactions %}
+                            <tr><td colspan="2" class="text-center text-muted py-4">Aucune transaction</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const textColor = getComputedStyle(document.body).getPropertyValue('--bs-body-color') || '#333';
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ months | tojson }},
+            datasets: [
+                { label: 'Revenus', data: {{ monthly_income_data | tojson }}, backgroundColor: 'rgba(13,110,253,0.7)', borderRadius: 6 },
+                { label: 'Dépenses', data: {{ monthly_expense_data | tojson }}, backgroundColor: 'rgba(220,53,69,0.7)', borderRadius: 6 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    if (document.getElementById('balanceChart') && {{ daily_dates | tojson }}.length > 0) {
+        new Chart(document.getElementById('balanceChart'), {
+            type: 'line',
+            data: {
+                labels: {{ daily_dates | tojson }},
+                datasets: [{
+                    label: 'Solde',
+                    data: {{ daily_balance | tojson }},
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13,110,253,0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+        });
+    }
+});
+</script>
+{% endblock %}
