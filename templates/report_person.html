@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Rapport par personne - FinanceApp{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h4 class="fw-bold mb-0"><i class="bi bi-person-lines-fill me-2"></i>Rapport par personne</h4>
+    <div class="d-flex gap-2">
+        <form method="GET" class="d-flex gap-2">
+            <select name="month" class="form-select form-select-sm" style="width:140px">
+                {% for i in range(1,13) %}
+                <option value="{{ i }}" {% if selected_month == i %}selected{% endif %}>{{ months_list[i-1] }}</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="year" class="form-control form-control-sm" style="width:90px" value="{{ selected_year }}">
+            <button class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+        </form>
+        <a href="{{ url_for('reports.person_pdf', year=selected_year, month=selected_month) }}" class="btn btn-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for item in person_data %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="fw-bold"><i class="bi bi-person-circle me-2"></i>{{ item.person.name }}</h5>
+                <small class="text-muted">{{ item.count }} transaction(s)</small>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted d-block">Revenus</small>
+                        <strong class="text-success">{{ "{:,.0f}".format(item.income) }} DH</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Dépenses</small>
+                        <strong class="text-danger">{{ "{:,.0f}".format(item.expense) }} DH</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Net</small>
+                        <strong class="{% if item.income - item.expense >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "{:,.0f}".format(item.income - item.expense) }} DH</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not person_data %}
+    <div class="col-12 text-center text-muted py-5">Aucune donnée pour cette période</div>
+    {% endif %}
+</div>
+{% endblock %}
