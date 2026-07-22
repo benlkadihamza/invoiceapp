@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: financeapp
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: financeapp-db
+          property: connectionString
+    healthCheckPath: /
+
+databases:
+  - name: financeapp-db
+    plan: free
+    databaseName: financeapp
