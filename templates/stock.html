@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}Inventaire & Stock - FinanceApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-box-seam me-2"></i>Gestion de Stock</h2>
+        <small class="text-muted">Suivi des produits et mouvements de stock</small>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="openAddModal()">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter un Produit
+        </button>
+        <a href="{{ url_for('stock.stock_report') }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapport Mensuel
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-primary">{{ total_products }}</div>
+            <small class="text-muted fw-semibold">Produits Total</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-success">{{ total_stock }}</div>
+            <small class="text-muted fw-semibold">Quantité en Stock</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-warning">{{ low_stock }}</div>
+            <small class="text-muted fw-semibold">Stock Bas (<= 5)</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-2 fw-bold text-danger">{{ out_of_stock }}</div>
+            <small class="text-muted fw-semibold">Rupture de Stock</small>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body">
+        <input type="text" id="search-input" class="form-control" placeholder="Rechercher un produit par son nom...">
+    </div>
+</div>
+
+{% if products %}
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="stock-table">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 80px;">Photo</th>
+                    <th>Nom du Produit</th>
+                    <th class="text-center" style="width: 120px;">Stock Actuel</th>
+                    <th class="text-center" style="width: 220px;">Ajuster Stock</th>
+                    <th class="text-center" style="width: 160px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in products %}
+                <tr class="{% if p.stock_quantity == 0 %}table-danger{% elif p.stock_quantity <= 5 %}table-warning{% endif %}">
+                    <td>
+                        {% if p.photo %}
+                        <img src="{{ url_for('static', filename='uploads/products/' + p.photo) }}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;" alt="{{ p.title }}">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center text-muted" style="width: 50px; height: 50px;">
+                            <i class="bi bi-box fs-4"></i>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="product-title-cell fw-semibold">{{ p.title }}</td>
+                    <td class="text-center">
+                        {% if p.stock_quantity == 0 %}
+                            <span class="badge bg-danger fs-6">0 (Rupture)</span>
+                        {% elif p.stock_quantity <= 5 %}
+                            <span class="badge bg-warning text-dark fs-6">{{ p.stock_quantity }} (Stock bas)</span>
+                        {% else %}
+                            <span class="badge bg-success fs-6">{{ p.stock_quantity }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="input-group input-group-sm justify-content-center" style="max-width: 180px; margin: 0 auto;">
+                            <input type="number" id="qty-{{ p.id }}" class="form-control text-center" value="1" min="1" style="max-width: 70px;">
+                            <button type="button" class="btn btn-outline-success" onclick="addStock({{ p.id }})" title="Ajouter au stock">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="removeStock({{ p.id }})" title="Retirer du stock">
+                                <i class="bi bi-dash-lg"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-warning" onclick="openEditModal({{ p.id }}, '{{ p.title|replace("'", "\\'") }}', '{{ p.photo }}')" title="Modifier">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="deleteProduct({{ p.id }})" title="Supprimer">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm text-center p-5">
+    <i class="bi bi-box fs-1 text-muted mb-3"></i>
+    <h5 class="text-muted">Aucun produit dans l'inventaire.</h5>
+    <div class="mt-3">
+        <button class="btn btn-success" onclick="openAddModal()">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter votre premier produit
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un produit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="add-alert"></div>
+                <form id="add-product-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="add-title" class="form-label">Nom du produit *</label>
+                        <input type="text" class="form-control" id="add-title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="add-photo" class="form-label">Photo du produit</label>
+                        <input type="file" class="form-control" id="add-photo" name="photo" accept="image/*">
+                        <img id="add-photo-preview" class="img-thumbnail mt-2" style="max-height: 120px; display: none;" alt="Aperçu">
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier le produit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="edit-alert"></div>
+                <form id="edit-product-form" enctype="multipart/form-data">
+                    <input type="hidden" id="edit-product-id">
+                    <div class="mb-3">
+                        <label for="edit-title" class="form-label">Nom du produit *</label>
+                        <input type="text" class="form-control" id="edit-title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-photo" class="form-label">Photo du produit</label>
+                        <input type="file" class="form-control" id="edit-photo" name="photo" accept="image/*">
+                        <img id="edit-photo-preview" class="img-thumbnail mt-2" style="max-height: 120px; display: none;" alt="Aperçu">
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    let addModal, editModal;
+    document.addEventListener('DOMContentLoaded', () => {
+        addModal = new bootstrap.Modal(document.getElementById('addModal'));
+        editModal = new bootstrap.Modal(document.getElementById('editModal'));
+    });
+
+    function openAddModal() {
+        document.getElementById('add-title').value = '';
+        document.getElementById('add-photo').value = '';
+        document.getElementById('add-photo-preview').style.display = 'none';
+        document.getElementById('add-alert').innerHTML = '';
+        addModal.show();
+    }
+
+    function openEditModal(id, title, photo) {
+        document.getElementById('edit-product-id').value = id;
+        document.getElementById('edit-title').value = title;
+        document.getElementById('edit-photo').value = '';
+        const preview = document.getElementById('edit-photo-preview');
+        if (photo) {
+            preview.src = "{{ url_for('static', filename='uploads/products/') }}" + photo;
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+        document.getElementById('edit-alert').innerHTML = '';
+        editModal.show();
+    }
+
+    function showAlert(containerId, message, isError) {
+        const el = document.getElementById(containerId);
+        el.innerHTML = `<div class="alert alert-${isError ? 'danger' : 'success'}">${message}</div>`;
+    }
+
+    document.getElementById('add-photo').addEventListener('change', function(e) {
+        const preview = document.getElementById('add-photo-preview');
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(ev) { preview.src = ev.target.result; preview.style.display = 'block'; };
+            reader.readAsDataURL(e.target.files[0]);
+        } else {
+            preview.style.display = 'none';
+        }
+    });
+
+    document.getElementById('edit-photo').addEventListener('change', function(e) {
+        const preview = document.getElementById('edit-photo-preview');
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(ev) { preview.src = ev.target.result; preview.style.display = 'block'; };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+
+    document.getElementById('add-product-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const title = formData.get('title').trim();
+        if (!title) {
+            showAlert('add-alert', 'Le nom du produit est requis.', true);
+            return;
+        }
+        try {
+            const res = await fetch('/stock/add', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                showAlert('add-alert', data.error || 'Erreur lors de l\'ajout.', true);
+            }
+        } catch (err) {
+            showAlert('add-alert', 'Erreur de connexion.', true);
+        }
+    });
+
+    document.getElementById('edit-product-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit-product-id').value;
+        const formData = new FormData(this);
+        const title = formData.get('title').trim();
+        if (!title) {
+            showAlert('edit-alert', 'Le nom du produit est requis.', true);
+            return;
+        }
+        try {
+            const res = await fetch('/stock/edit/' + id, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                showAlert('edit-alert', data.error || 'Erreur lors de la modification.', true);
+            }
+        } catch (err) {
+            showAlert('edit-alert', 'Erreur de connexion.', true);
+        }
+    });
+
+    async function addStock(productId) {
+        if (!confirm("Voulez-vous ajouter cette quantité au stock ?")) return;
+        const qtyEl = document.getElementById('qty-' + productId);
+        const qty = parseInt(qtyEl.value, 10);
+        if (!qty || qty < 1) {
+            alert('Quantité invalide.');
+            return;
+        }
+        try {
+            const res = await fetch('/stock/add-stock/' + productId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ quantity: qty })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur.');
+            }
+        } catch (err) {
+            alert('Erreur de connexion.');
+        }
+    }
+
+    async function removeStock(productId) {
+        if (!confirm("Voulez-vous retirer cette quantité du stock ?")) return;
+        const qtyEl = document.getElementById('qty-' + productId);
+        const qty = parseInt(qtyEl.value, 10);
+        if (!qty || qty < 1) {
+            alert('Quantité invalide.');
+            return;
+        }
+        try {
+            const res = await fetch('/stock/remove-stock/' + productId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ quantity: qty })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur.');
+            }
+        } catch (err) {
+            alert('Erreur de connexion.');
+        }
+    }
+
+    async function deleteProduct(productId) {
+        if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
+        try {
+            const res = await fetch('/stock/delete/' + productId, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur lors de la suppression.');
+            }
+        } catch (err) {
+            alert('Erreur de connexion.');
+        }
+    }
+
+    document.getElementById('search-input')?.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#stock-table tbody tr');
+        rows.forEach(function(row) {
+            const titleCell = row.querySelector('.product-title-cell');
+            if (titleCell) {
+                const title = titleCell.textContent.toLowerCase();
+                row.style.display = title.includes(query) ? '' : 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}
