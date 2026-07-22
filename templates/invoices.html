@@ -1,245 +1,99 @@
 {% extends "base.html" %}
-{% block title %}Liste des Factures{% endblock %}
-{% block extra_head %}
-<style>
-    .header-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .header-actions h1 {
-        margin: 0;
-    }
-    .btn-nav {
-        text-decoration: none;
-        background: #4472C4;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 600;
-        transition: all 0.2s;
-    }
-    .btn-nav:hover {
-        background: #3661b0;
-    }
-    .invoices-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    .invoices-table th, .invoices-table td {
-        padding: 15px;
-        text-align: left;
-        border-bottom: 1px solid #eeeeee;
-    }
-    .invoices-table th {
-        background-color: #f8fafc;
-        color: #333333;
-        font-weight: 600;
-        font-size: 14px;
-    }
-    .invoices-table td {
-        font-size: 14px;
-        color: #555555;
-    }
-    .invoices-table tr:last-child td {
-        border-bottom: none;
-    }
-    .invoices-table tr:hover {
-        background-color: #f8fafc;
-    }
-    .action-btns {
-        display: flex;
-        gap: 8px;
-    }
-    .btn-action {
-        padding: 6px 12px;
-        font-size: 12px;
-        font-weight: 600;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .btn-action-pdf {
-        background: #2ed573;
-        color: white;
-    }
-    .btn-action-pdf:hover {
-        background: #26b863;
-    }
-    .btn-action-excel {
-        background: #17a2b8;
-        color: white;
-    }
-    .btn-action-excel:hover {
-        background: #138496;
-    }
-    .btn-action-edit {
-        background: #C9A84C;
-        color: white;
-    }
-    .btn-action-edit:hover {
-        background: #b0913b;
-    }
-    .btn-action-delete {
-        background: #ff4757;
-        color: white;
-    }
-    .btn-action-delete:hover {
-        background: #e04050;
-    }
-    .empty-state {
-        text-align: center;
-        padding: 40px;
-        color: #888888;
-        font-size: 16px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-top: 20px;
-    }
-    .search-container {
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
-    #search-input {
-        width: 100%;
-        padding: 12px 16px;
-        font-size: 14px;
-        border: 1px solid #dddddd;
-        border-radius: 6px;
-        outline: none;
-        transition: all 0.2s;
-        box-sizing: border-box;
-    }
-    #search-input:focus {
-        border-color: #4472C4;
-        box-shadow: 0 0 0 3px rgba(68, 114, 196, 0.1);
-    }
-    .table-scroll-wrapper {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        margin-top: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    @media (max-width: 768px) {
-        .hide-mobile {
-            display: none;
-        }
-        header.header-actions {
-            padding: 20px 16px;
-        }
-        .header-actions {
-            flex-direction: column;
-            gap: 12px;
-            align-items: stretch;
-            text-align: center;
-        }
-        .header-actions h1 {
-            font-size: 20px;
-        }
-        .btn-nav {
-            display: block;
-            text-align: center;
-            padding: 14px 20px;
-            font-size: 15px;
-        }
-        #search-input {
-            padding: 14px 16px;
-            font-size: 16px;
-        }
-        .invoices-table {
-            width: 100%;
-        }
-        .invoices-table th,
-        .invoices-table td {
-            padding: 8px 10px;
-            font-size: 13px;
-        }
-        .action-btns {
-            flex-wrap: nowrap;
-            gap: 4px;
-        }
-        .btn-action {
-            padding: 8px 10px;
-            font-size: 11px;
-            min-height: 38px;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-    }
-</style>
-{% endblock %}
+{% block title %}Liste des Factures - FinanceApp{% endblock %}
+
 {% block content %}
-<header class="header-actions">
-    <h1>Liste des Factures</h1>
-    <a href="/" class="btn-nav">Nouvelle facture</a>
-</header>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-receipt me-2"></i>Liste des Factures</h2>
+        <small class="text-muted">Gestion et suivi de toutes les factures enregistrées</small>
+    </div>
+    <a href="{{ url_for('invoices.create_invoice') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Nouvelle facture
+    </a>
+</div>
 
 {% if invoices %}
-    <div class="search-container">
-        <input type="text" id="search-input" placeholder="Rechercher par N° de facture ou nom de client...">
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <input type="text" id="search-input" class="form-control" placeholder="Rechercher par N° de facture ou nom de client...">
+        </div>
     </div>
-    <div class="table-scroll-wrapper">
-    <table class="invoices-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th class="hide-mobile">N° Facture</th>
-                <th>Client</th>
-                <th>Date</th>
-                <th>Total</th>
-                <th class="hide-mobile">Créé le</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for invoice in invoices %}
-                <tr id="invoice-row-{{ invoice.id }}">
-                    <td><strong>{{ invoice.id }}</strong></td>
-                    <td class="hide-mobile">{{ invoice.invoice_num }}</td>
-                    <td>{{ invoice.client_name }}</td>
-                    <td>{{ invoice.date }}</td>
-                    <td><strong>{{ "{:,.2f}".format(invoice.net_total).replace(',', ' ') }} DH</strong></td>
-                    <td class="hide-mobile">{{ invoice.created_at }}</td>
-                    <td>
-                        <div class="action-btns">
-                            <a href="/?edit={{ invoice.id }}" class="btn-action btn-action-edit" title="Modifier">✏️ Modifier</a>
-                            <a href="/invoices/{{ invoice.id }}/pdf" class="btn-action btn-action-pdf" title="Télécharger PDF">PDF</a>
-                            <a href="/invoices/{{ invoice.id }}/excel" class="btn-action btn-action-excel hide-mobile" title="Télécharger Excel">Excel</a>
-                            <button type="button" class="btn-action btn-action-delete" onclick="deleteInvoice({{ invoice.id }})" title="Supprimer">Supprimer</button>
-                        </div>
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 invoices-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th class="d-none d-md-table-cell">N° Facture</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th class="d-none d-md-table-cell">Créé le</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr id="invoice-row-{{ invoice.id }}">
+                            <td><strong>#{{ invoice.id }}</strong></td>
+                            <td class="d-none d-md-table-cell">{{ invoice.invoice_num }}</td>
+                            <td>{{ invoice.client_name }}</td>
+                            <td>{{ invoice.date }}</td>
+                            <td><span class="badge bg-success fs-6">{{ "{:,.2f}".format(invoice.net_total).replace(',', ' ') }} DH</span></td>
+                            <td class="d-none d-md-table-cell"><small class="text-muted">{{ invoice.created_at }}</small></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('invoices.create_invoice') }}?edit={{ invoice.id }}" class="btn btn-outline-warning" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{{ url_for('invoices.download_saved_pdf', invoice_id=invoice.id) }}" class="btn btn-outline-danger" title="Télécharger PDF">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
+                                    <a href="{{ url_for('invoices.download_saved_excel', invoice_id=invoice.id) }}" class="btn btn-outline-success d-none d-md-inline-block" title="Télécharger Excel">
+                                        <i class="bi bi-file-earmark-excel"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger" onclick="deleteInvoice({{ invoice.id }})" title="Supprimer">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 {% else %}
-    <div class="empty-state">
-        <p>Aucune facture enregistrée pour le moment.</p>
+    <div class="card border-0 shadow-sm text-center p-5">
+        <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
+        <h5 class="text-muted">Aucune facture enregistrée pour le moment.</h5>
+        <div class="mt-3">
+            <a href="{{ url_for('invoices.create_invoice') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>Créer votre première facture
+            </a>
+        </div>
     </div>
 {% endif %}
 {% endblock %}
+
 {% block scripts %}
 <script>
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
     async function deleteInvoice(invoiceId) {
         if (!confirm("Êtes-vous sûr de vouloir supprimer cette facture ?")) {
             return;
         }
         try {
             const res = await fetch(`/invoices/${invoiceId}/delete`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
             });
             const result = await res.json();
             if (result && result.success) {
