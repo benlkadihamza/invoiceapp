@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Rapports - FinanceApp{% endblock %}
+{% block content %}
+<h4 class="fw-bold mb-4"><i class="bi bi-file-earmark-bar-graph me-2"></i>Rapports</h4>
+<div class="row g-3">
+    <div class="col-md-4">
+        <a href="{{ url_for('reports.daily') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-calendar-day display-4 text-primary"></i>
+                <h5 class="mt-3 fw-bold text-dark">Rapport quotidien</h5>
+                <p class="text-muted">Transactions du jour</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{{ url_for('reports.weekly') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-calendar-week display-4 text-success"></i>
+                <h5 class="mt-3 fw-bold text-dark">Rapport hebdomadaire</h5>
+                <p class="text-muted">Transactions de la semaine</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{{ url_for('reports.monthly') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-calendar-month display-4 text-warning"></i>
+                <h5 class="mt-3 fw-bold text-dark">Rapport mensuel</h5>
+                <p class="text-muted">Transactions du mois</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{{ url_for('reports.yearly') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-calendar3 display-4 text-info"></i>
+                <h5 class="mt-3 fw-bold text-dark">Rapport annuel</h5>
+                <p class="text-muted">Transactions de l'année</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{{ url_for('reports.person') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-people display-4 text-secondary"></i>
+                <h5 class="mt-3 fw-bold text-dark">Par personne</h5>
+                <p class="text-muted">Analyse par personne</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}
