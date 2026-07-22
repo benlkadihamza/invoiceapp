@@ -1,1040 +1,144 @@
-import logging
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect as sa_inspect, text as sa_text
-from fpdf import FPDF
-from datetime import datetime
-import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-import os, re, tempfile, json
-from io import BytesIO
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
-
-app = Flask(__name__)
-
-# ---------------------------------------------------------------------------
-# Database configuration: PostgreSQL via DATABASE_URL env var, or SQLite fallback
-# ---------------------------------------------------------------------------
-database_url = os.environ.get("DATABASE_URL")
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-if not database_url:
-    database_url = "sqlite:///invoice.db"
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24).hex())
-
-db = SQLAlchemy(app)
+import os
+from flask import Flask
+from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
+from models import db, User
+from config import config
+from routes import register_blueprints
 
 
-class Invoice(db.Model):
-    __tablename__ = "invoices"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    invoice_num = db.Column(db.String, nullable=False, default="")
-    date = db.Column(db.String, nullable=False, default="")
-    client_name = db.Column(db.String, nullable=False, default="")
-    client_address = db.Column(db.String, nullable=False, default="")
-    total = db.Column(db.Float, nullable=False, default=0.0)
-    remise = db.Column(db.Float, nullable=False, default=0.0)
-    payer = db.Column(db.Float, nullable=False, default=0.0)
-    net_total = db.Column(db.Float, nullable=False, default=0.0)
-    items = db.Column(db.JSON, nullable=False, default=list)
-    show_facture_num = db.Column(db.Boolean, nullable=False, default=False)
-    created_at = db.Column(
-        db.String,
-        default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
+def create_app(config_name=None):
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'default')
+
+    app = Flask(__name__)
+    app.config.from_object(config[config_name])
+
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
+    os.makedirs(os.path.join(app.root_path, 'database'), exist_ok=True)
+
+    db.init_app(app)
+    csrf = CSRFProtect(app)
+
+    login_manager = LoginManager()
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Veuillez vous connecter.'
+    login_manager.login_message_category = 'warning'
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
+    @app.context_processor
+    def inject_globals():
+        from models import Person, PaymentMethod
+        return {
+            'all_persons': Person.query.order_by(Person.name).all(),
+            'all_payment_methods': PaymentMethod.query.order_by(PaymentMethod.name).all(),
+        }
+
+    register_blueprints(app)
+
+    with app.app_context():
+        db.create_all()
+        _clean_database()
+        _seed_defaults()
+
+    return app
 
 
-class User(db.Model):
-    __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(
-        db.String,
-        default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
+def _clean_database():
+    from models import Transaction
+    import sqlalchemy as sa
 
+    inspector = sa.inspect(db.engine)
+    table_names = inspector.get_table_names()
 
-def _ensure_no_unique_on_invoice_num():
-    """
-    Automatic migration: remove any UNIQUE constraint on invoice_num.
-
-    The previous schema had ``unique=True`` on the ``invoice_num`` column.
-    SQLite ignores ALTER TABLE DROP CONSTRAINT, so we need to recreate the
-    table.  PostgreSQL can drop the constraint by name.  This function
-    handles both engines and preserves all existing data.
-    """
-    dialect = db.engine.dialect.name
-    inspector = sa_inspect(db.engine)
-
-    # ---- 1. Detect whether a UNIQUE constraint on invoice_num exists ----
-    needs_migration = False
-    constraint_name = None
-
-    try:
-        unique_constraints = inspector.get_unique_constraints("invoices")
-    except Exception:
-        unique_constraints = []
-
-    for uc in unique_constraints:
-        cols = [c.lower() for c in uc.get("column_names", [])]
-        if "invoice_num" in cols:
-            needs_migration = True
-            constraint_name = uc["name"]
-            break
-
-    if not needs_migration:
-        return
-
-    app.logger.info(
-        "Detected legacy UNIQUE constraint on invoice_num — migrating."
-    )
-
-    # ---- 2. Execute the correct strategy per dialect ----
-    if dialect == "postgresql":
-        stmt = sa_text(
-            f'ALTER TABLE invoices DROP CONSTRAINT IF EXISTS "{constraint_name}"'
-        )
-        with db.engine.connect() as conn:
-            conn.execute(stmt)
-            conn.commit()
-        app.logger.info("Dropped UNIQUE constraint on PostgreSQL.")
-        return
-
-    # ---- 3. SQLite — recreate the table without the constraint ----
-    with db.engine.connect() as conn:
-        conn.execute(sa_text("PRAGMA foreign_keys = OFF"))
-        conn.execute(sa_text("BEGIN TRANSACTION"))
-
-        # 3a. Create a new table with the same columns but no UNIQUE on invoice_num
-        conn.execute(sa_text("""
-            CREATE TABLE invoices_migrated (
-                id             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                invoice_num    VARCHAR NOT NULL DEFAULT '',
-                date           VARCHAR NOT NULL DEFAULT '',
-                client_name    VARCHAR NOT NULL DEFAULT '',
-                client_address VARCHAR NOT NULL DEFAULT '',
-                total          FLOAT NOT NULL DEFAULT 0.0,
-                remise         FLOAT NOT NULL DEFAULT 0.0,
-                payer          FLOAT NOT NULL DEFAULT 0.0,
-                net_total      FLOAT NOT NULL DEFAULT 0.0,
-                items          JSON NOT NULL DEFAULT '[]',
-                created_at     VARCHAR
-            )
-        """))
-
-        # 3b. Copy all existing data
-        conn.execute(sa_text("""
-            INSERT INTO invoices_migrated
-                (id, invoice_num, date, client_name, client_address,
-                 total, remise, payer, net_total, items, created_at)
-            SELECT
-                id, invoice_num, date, client_name, client_address,
-                total, remise, payer, net_total, items, created_at
-            FROM invoices
-        """))
-
-        # 3c. Swap tables
-        conn.execute(sa_text("DROP TABLE invoices"))
-        conn.execute(sa_text(
-            "ALTER TABLE invoices_migrated RENAME TO invoices"
-        ))
-
-        conn.execute(sa_text("COMMIT"))
-        conn.execute(sa_text("PRAGMA foreign_keys = ON"))
-
-    app.logger.info("Recreated SQLite table — UNIQUE constraint removed.")
-
-
-def _ensure_show_facture_num_column():
-    """
-    Automatic migration: add show_facture_num boolean column if missing.
-    Existing invoices default to False.
-    """
-    dialect = db.engine.dialect.name
-    inspector = sa_inspect(db.engine)
-    columns = {c["name"] for c in inspector.get_columns("invoices")}
-
-    if "show_facture_num" in columns:
-        return
-
-    if dialect == "postgresql":
-        with db.engine.connect() as conn:
-            conn.execute(sa_text(
-                "ALTER TABLE invoices ADD COLUMN show_facture_num BOOLEAN NOT NULL DEFAULT FALSE"
-            ))
-            conn.commit()
-    else:
-        with db.engine.connect() as conn:
-            conn.execute(sa_text("PRAGMA foreign_keys = OFF"))
-            conn.execute(sa_text("BEGIN"))
-            conn.execute(sa_text(
-                "ALTER TABLE invoices ADD COLUMN show_facture_num BOOLEAN NOT NULL DEFAULT 0"
-            ))
-            conn.execute(sa_text("COMMIT"))
-            conn.execute(sa_text("PRAGMA foreign_keys = ON"))
-
-    app.logger.info("Added show_facture_num column to invoices table.")
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-# Create all tables on startup (runs at import time for Gunicorn,
-# and also when executed directly via python app.py).
-with app.app_context():
-    db.create_all()
-    _ensure_no_unique_on_invoice_num()
-    _ensure_show_facture_num_column()
-    if User.query.count() == 0:
-        admin = User(
-            username="admin",
-            password_hash=generate_password_hash("admin123")
-        )
-        db.session.add(admin)
+    if 'categories' in table_names:
+        db.session.execute(sa.text('DROP TABLE categories'))
         db.session.commit()
 
+    if 'transactions' in table_names:
+        columns = [col['name'] for col in inspector.get_columns('transactions')]
+        if 'transaction_type' in columns:
+            db.session.execute(sa.text(
+                "CREATE TABLE IF NOT EXISTS transactions_backup AS "
+                "SELECT id, date, description, income, expense, notes, receipt_image, "
+                "person_id, payment_method_id, created_at FROM transactions"
+            ))
+            db.session.execute(sa.text('DROP TABLE transactions'))
+            db.session.execute(sa.text(
+                "CREATE TABLE transactions ("
+                "id INTEGER PRIMARY KEY, "
+                "date DATE NOT NULL, "
+                "description VARCHAR(200) NOT NULL, "
+                "income FLOAT DEFAULT 0.0, "
+                "expense FLOAT DEFAULT 0.0, "
+                "notes TEXT, "
+                "receipt_image VARCHAR(256), "
+                "person_id INTEGER NOT NULL REFERENCES persons(id), "
+                "payment_method_id INTEGER REFERENCES payment_methods(id), "
+                "created_at DATETIME)"
+            ))
+            db.session.execute(sa.text(
+                "INSERT INTO transactions (id, date, description, income, expense, notes, "
+                "receipt_image, person_id, payment_method_id, created_at) "
+                "SELECT id, date, description, income, expense, notes, "
+                "receipt_image, person_id, payment_method_id, created_at "
+                "FROM transactions_backup"
+            ))
+            db.session.execute(sa.text('DROP TABLE transactions_backup'))
+            db.session.commit()
+        elif 'category_id' in columns:
+            db.session.execute(sa.text(
+                "CREATE TABLE IF NOT EXISTS transactions_backup AS "
+                "SELECT id, date, description, income, expense, notes, receipt_image, "
+                "person_id, payment_method_id, created_at FROM transactions"
+            ))
+            db.session.execute(sa.text('DROP TABLE transactions'))
+            db.session.execute(sa.text(
+                "CREATE TABLE transactions ("
+                "id INTEGER PRIMARY KEY, "
+                "date DATE NOT NULL, "
+                "description VARCHAR(200) NOT NULL, "
+                "income FLOAT DEFAULT 0.0, "
+                "expense FLOAT DEFAULT 0.0, "
+                "notes TEXT, "
+                "receipt_image VARCHAR(256), "
+                "person_id INTEGER NOT NULL REFERENCES persons(id), "
+                "payment_method_id INTEGER REFERENCES payment_methods(id), "
+                "created_at DATETIME)"
+            ))
+            db.session.execute(sa.text(
+                "INSERT INTO transactions (id, date, description, income, expense, notes, "
+                "receipt_image, person_id, payment_method_id, created_at) "
+                "SELECT id, date, description, income, expense, notes, "
+                "receipt_image, person_id, payment_method_id, created_at "
+                "FROM transactions_backup"
+            ))
+            db.session.execute(sa.text('DROP TABLE transactions_backup'))
+            db.session.commit()
 
-COMPANY_NAME = "Votre Société"
-COMPANY_ADDRESS = "Rue Tange Center Al hirafiyin N 25 Imzouren Al Hoceima"
-COMPANY_PHONE = ""
-COMPANY_EMAIL = ""
 
+def _seed_defaults():
+    from models import PaymentMethod, User
 
-GOLD = (201, 168, 76)
-DARK = (51, 51, 51)
-GRAY_BG = (240, 240, 240)
-GRAY_TEXT = (136, 136, 136)
-MID_GRAY = (85, 85, 85)
+    if PaymentMethod.query.count() == 0:
+        methods = ['Espèces', 'Banque', 'Carte de crédit', 'Virement', 'Paiement mobile']
+        for m in methods:
+            db.session.add(PaymentMethod(name=m))
 
-
-def save_invoice(data):
-    """
-    Create or update an invoice.
-
-    Edit mode:   data contains 'id'  → UPDATE the existing row keeping its id.
-    Create mode: data has no 'id'    → INSERT a new row; the DB assigns a unique
-                                       auto-incremented id.
-    """
-    invoice_num    = data.get("invoice_num", "")
-    date_val       = data.get("date", "")
-    client_name    = data.get("client_name", "")
-    client_address = data.get("client_address", "")
-    total          = data.get("total", 0.0)
-    remise         = data.get("remise", 0.0)
-    payer          = data.get("payer", 0.0)
-    net_total      = data.get("net_total", 0.0)
-    items          = data.get("items", [])
-    show_facture_num = bool(data.get("show_facture_num", False))
-
-    existing_id = data.get("id")
-
-    if existing_id:
-        invoice = db.session.get(Invoice, existing_id)
-        if invoice:
-            invoice.invoice_num = invoice_num
-            invoice.date = date_val
-            invoice.client_name = client_name
-            invoice.client_address = client_address
-            invoice.total = total
-            invoice.remise = remise
-            invoice.payer = payer
-            invoice.net_total = net_total
-            invoice.items = items
-            invoice.show_facture_num = show_facture_num
-        invoice_id = existing_id
-    else:
-        invoice = Invoice(
-            invoice_num=invoice_num,
-            date=date_val,
-            client_name=client_name,
-            client_address=client_address,
-            total=total,
-            remise=remise,
-            payer=payer,
-            net_total=net_total,
-            items=items,
-            show_facture_num=show_facture_num
-        )
-        db.session.add(invoice)
-        db.session.flush()
-        invoice_id = invoice.id
+    if User.query.count() == 0:
+        u = User(username='admin')
+        u.set_password('admin123')
+        db.session.add(u)
 
     db.session.commit()
-    return invoice_id
 
 
-class InvoicePDF(FPDF):
-    def header(self):
-        if self.page_no() > 1:
-            return
+app = create_app()
 
-        self.set_y(25)
-
-        logo_path = os.path.join(os.path.dirname(__file__), "static", "logo.png")
-        if os.path.exists(logo_path):
-            self.image(logo_path, x=self.l_margin, y=14, w=48)
-
-        self.set_font("Helvetica", "B", 20)
-        self.set_text_color(*GOLD)
-        self.cell(0, 8, "COCINA ESPAÑOLA", align="R", new_x="LMARGIN", new_y="NEXT")
-        self.set_font("Helvetica", "I", 14)
-        self.cell(0, 6, "Art MDF", align="R", new_x="LMARGIN", new_y="NEXT")
-        self.set_font("Helvetica", "", 9)
-        self.set_text_color(*MID_GRAY)
-        self.cell(0, 5, "Rue Tange Center Al hirafiyin N 25", align="R", new_x="LMARGIN", new_y="NEXT")
-        self.cell(0, 5, "Imzouren AL Hoceima", align="R", new_x="LMARGIN", new_y="NEXT")
-        self.set_font("Helvetica", "B", 9)
-        self.set_text_color(*DARK)
-        client_name = getattr(self, "_client_name", "")
-        self.cell(0, 5, f"Client: {client_name}", align="R", new_x="LMARGIN", new_y="NEXT")
-        self.ln(10)
-
-        self.set_draw_color(*GOLD)
-        self.set_line_width(0.6)
-        self.set_font("Helvetica", "B", 18)
-        self.set_text_color(*DARK)
-        facture_num = getattr(self, "_facture_num", "")
-        show_fn = getattr(self, "_show_facture_num", False)
-        title = "FACTURE"
-        if show_fn and facture_num:
-            title += f" N\u00b0 {facture_num}"
-        self.cell(0, 10, title, align="C", new_x="LMARGIN", new_y="NEXT")
-        y = self.get_y()
-        self.line(95, y, 115, y)
-        self.ln(8)
-
-        date_val = getattr(self, "_date", "")
-        self.set_font("Helvetica", "", 10)
-        self.set_text_color(*MID_GRAY)
-        self.cell(0, 6, f"Date de facture: {date_val}", align="R", new_x="LMARGIN", new_y="NEXT")
-        self.ln(6)
-
-    def footer(self):
-        self.set_y(-25)
-        self.set_draw_color(200, 200, 200)
-        self.set_line_width(0.3)
-        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.ln(4)
-
-        self.set_font("Helvetica", "", 7)
-        self.set_text_color(*GRAY_TEXT)
-        page_w = self.w - self.l_margin - self.r_margin
-        col_w = page_w / 3
-        self.set_x(self.l_margin)
-        self.cell(col_w, 4, "Rue Tange Center Al hirafiyin N 25", align="C")
-        self.cell(col_w, 4, "Tel: +212 6 71 68 75 98", align="C")
-        self.cell(col_w, 4, "Instagram: cocinaespanola", align="C")
-        self.ln()
-        self.set_x(self.l_margin)
-        self.cell(col_w, 4, "Imzouren AL Hoceima", align="C")
-        self.cell(col_w, 4, "", align="C")
-        self.set_text_color(*DARK)
-        self.cell(col_w, 4, f"{self.page_no()}/{{nb}}", align="R")
-
-
-def safe_filename(name):
-    name = re.sub(r'[<>:"/\\|?*]', '_', name).strip()
-    if not name:
-        name = "facture"
-    return name
-
-
-@app.route("/")
-@login_required
-def index():
-    return render_template("index.html")
-
-
-@app.route("/generate_pdf", methods=["POST"])
-@login_required
-def generate_pdf():
-    data = request.get_json()
-
-    pdf = InvoicePDF()
-    pdf._client_name = data.get("client_name", "")
-    pdf._date = data.get("date", "")
-    pdf._facture_num = data.get("invoice_num", "")
-    pdf._show_facture_num = data.get("show_facture_num", False)
-    pdf.set_auto_page_break(auto=True, margin=30)
-    pdf.add_page()
-
-    col_w = [72, 28, 44, 38]
-    headers = ["Description", "Quantité", "Prix DH", "Montant DH"]
-
-    def draw_table_header():
-        pdf.set_font("Helvetica", "B", 9)
-        pdf.set_fill_color(*GRAY_BG)
-        pdf.set_text_color(*DARK)
-        pdf.set_draw_color(200, 200, 200)
-        pdf.set_draw_color(0, 0, 0)
-        for i, h in enumerate(headers):
-            pdf.cell(col_w[i], 8, h, border=1, align="C", fill=True)
-        pdf.ln()
-
-    draw_table_header()
-
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_font("Helvetica", "B", 9)
-    pdf.set_text_color(*DARK)
-    last_page = pdf.page_no()
-    for item in data['items']:
-        if pdf.page_no() != last_page:
-            draw_table_header()
-            last_page = pdf.page_no()
-        pdf.cell(col_w[0], 7, item['description'], border=1)
-        pdf.cell(col_w[1], 7, str(item['quantity']), border=1, align="C")
-        pdf.cell(col_w[2], 7, f"{item['unit_price']:,.2f}".replace(',', ' '), border=1, align="C")
-        pdf.cell(col_w[3], 7, f"{item['total']:,.2f}".replace(',', ' '), border=1, align="C")
-        pdf.ln()
-
-    # Total
-    total = data['total']
-    remise = data.get('remise', 0)
-    payer = data.get('payer', 0)
-    net_total = data.get('net_total', total)
-
-    pdf.ln(4)
-    total_x = pdf.l_margin + col_w[0] + col_w[1]
-
-    pdf.set_draw_color(0, 0, 0)
-
-    def price_line(label, value, val_color=None, bold=False):
-        pdf.set_x(total_x)
-        pdf.set_fill_color(*GRAY_BG)
-        pdf.set_draw_color(0, 0, 0)
-        pdf.set_font("Helvetica", "B" if bold else "", 10)
-        if val_color:
-            pdf.set_text_color(*val_color)
-        else:
-            pdf.set_text_color(*DARK)
-        pdf.cell(col_w[2], 10, label, border=1, align="C", fill=True)
-        pdf.cell(col_w[3], 10, value, border=1, align="C", fill=True)
-        pdf.ln(10)
-
-    if remise > 0 or payer > 0:
-        price_line("Total en DH", f"{total:,.2f} DH".replace(',', ' '))
-    if remise > 0:
-        price_line("Remise en DH", f"-{remise:,.2f} DH".replace(',', ' '))
-    if payer > 0:
-        price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
-    price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
-
-    name = f"{safe_filename(data['client_name'])}.pdf"
-    buf = BytesIO()
-    pdf.output(buf)
-    buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name=name, mimetype="application/pdf")
-
-
-@app.route("/generate_excel", methods=["POST"])
-@login_required
-def generate_excel():
-    data = request.get_json()
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Facture"
-
-    GOLD_HEX = "C9A84C"
-    GRAY_HEX = "F0F0F0"
-
-    thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
-    gray_fill = PatternFill(start_color=GRAY_HEX, end_color=GRAY_HEX, fill_type="solid")
-
-    ws.column_dimensions['A'].width = 38
-    ws.column_dimensions['B'].width = 14
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 18
-
-    # Header
-    ws.merge_cells('A1:C1')
-    ws['A1'] = "COCINA ESPAÑOLA"
-    ws['A1'].font = Font(name="Arial", bold=True, size=20, color=GOLD_HEX)
-
-    ws.merge_cells('A2:C2')
-    ws['A2'] = "Art MDF"
-    ws['A2'].font = Font(name="Arial", italic=True, size=14, color=GOLD_HEX)
-
-    ws.merge_cells('D1:D2')
-    ws['D1'] = "Rue Tange Center Al hirafiyin N 25"
-    ws['D1'].font = Font(name="Arial", size=9, color="555555")
-    ws['D1'].alignment = Alignment(horizontal='right', vertical='center')
-
-    ws.merge_cells('D3:D3')
-    ws['D3'] = "Imzouren AL Hoceima"
-    ws['D3'].font = Font(name="Arial", size=9, color="555555")
-    ws['D3'].alignment = Alignment(horizontal='right')
-
-    ws['C4'] = "Client:"
-    ws['C4'].font = Font(name="Arial", bold=True, size=10, color="333333")
-    ws['C4'].alignment = Alignment(horizontal='right')
-
-    ws['D4'] = data.get("client_name", "")
-    ws['D4'].font = Font(name="Arial", bold=True, size=10, color="333333")
-    ws['D4'].alignment = Alignment(horizontal='right')
-
-    # Title
-    ws.merge_cells('A6:D6')
-    title = "FACTURE"
-    show_fn = data.get("show_facture_num", False)
-    fn = data.get("invoice_num", "")
-    if show_fn and fn:
-        title += f" N\u00b0 {fn}"
-    ws['A6'] = title
-    ws['A6'].font = Font(name="Arial", bold=True, size=18, color="333333")
-    ws['A6'].alignment = Alignment(horizontal='center')
-
-    # Gold underline (row 7) - use bottom border on row 6 instead
-    ws['A6'].border = Border(bottom=Side(style='medium', color=GOLD_HEX))
-
-    # Date
-    ws.merge_cells('C8:D8')
-    ws['C8'] = f"Date de facture: {data.get('date', '')}"
-    ws['C8'].font = Font(name="Arial", size=10, color="555555")
-    ws['C8'].alignment = Alignment(horizontal='right')
-
-    # Table header
-    headers = ['Description', 'Quantité', 'Prix DH', 'Montant DH']
-    header_row = 10
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=header_row, column=col, value=h)
-        cell.font = Font(name="Arial", bold=True, size=10, color="333333")
-        cell.fill = gray_fill
-        cell.alignment = Alignment(horizontal='center')
-        cell.border = thin_border
-
-    # Table rows
-    for i, item in enumerate(data['items']):
-        r = header_row + 1 + i
-        ws.cell(row=r, column=1, value=item['description']).border = thin_border
-        ws.cell(row=r, column=1).font = Font(name="Arial", size=10)
-        ws.cell(row=r, column=2, value=item['quantity']).border = thin_border
-        ws.cell(row=r, column=2).font = Font(name="Arial", size=10)
-        ws.cell(row=r, column=3, value=item['unit_price']).border = thin_border
-        ws.cell(row=r, column=3).font = Font(name="Arial", size=10)
-        ws.cell(row=r, column=4, value=item['total']).border = thin_border
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=10)
-        for c in range(1, 5):
-            ws.cell(row=r, column=c).alignment = Alignment(horizontal='center')
-
-    # Total lines
-    total = data['total']
-    remise = data.get('remise', 0)
-    payer = data.get('payer', 0)
-    net_total = data.get('net_total', total)
-
-    r = header_row + 1 + len(data['items']) + 1
-
-    if remise > 0 or payer > 0:
-        # Total en DH
-        ws.cell(row=r, column=3, value="Total en DH")
-        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-        ws.cell(row=r, column=3).fill = gray_fill
-        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=3).border = thin_border
-        ws.cell(row=r, column=4, value=total)
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
-        ws.cell(row=r, column=4).fill = gray_fill
-        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=4).border = thin_border
-        r += 1
-
-    if remise > 0:
-        # Remise en DH
-        ws.cell(row=r, column=3, value="Remise en DH")
-        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-        ws.cell(row=r, column=3).fill = gray_fill
-        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=3).border = thin_border
-        ws.cell(row=r, column=4, value=-remise)
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
-        ws.cell(row=r, column=4).fill = gray_fill
-        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=4).border = thin_border
-        r += 1
-
-    if payer > 0:
-        # Payer en DH
-        ws.cell(row=r, column=3, value="Payer en DH")
-        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-        ws.cell(row=r, column=3).fill = gray_fill
-        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=3).border = thin_border
-        ws.cell(row=r, column=4, value=-payer)
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
-        ws.cell(row=r, column=4).fill = gray_fill
-        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=4).border = thin_border
-        r += 1
-
-    # Total a Payer en DH
-    ws.cell(row=r, column=3, value="Total à Payer en DH")
-    ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-    ws.cell(row=r, column=3).fill = gray_fill
-    ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-    ws.cell(row=r, column=3).border = thin_border
-    ws.cell(row=r, column=4, value=net_total)
-    ws.cell(row=r, column=4).font = Font(name="Arial", bold=True, size=12, color=GOLD_HEX)
-    ws.cell(row=r, column=4).fill = gray_fill
-    ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-    ws.cell(row=r, column=4).border = thin_border
-
-    # Footer
-    footer_row = r + 2
-    ws.merge_cells(f'A{footer_row}:A{footer_row}')
-    ws[f'A{footer_row}'] = "Rue Tange Center Al hirafiyin N 25"
-    ws[f'A{footer_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'A{footer_row}'].alignment = Alignment(horizontal='center')
-
-    ws.merge_cells(f'B{footer_row}:C{footer_row}')
-    ws[f'B{footer_row}'] = "Tel: +212 6 71 68 75 98"
-    ws[f'B{footer_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'B{footer_row}'].alignment = Alignment(horizontal='center')
-
-    ws.merge_cells(f'D{footer_row}:D{footer_row}')
-    ws[f'D{footer_row}'] = "Instagram: cocinaespanola"
-    ws[f'D{footer_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'D{footer_row}'].alignment = Alignment(horizontal='center')
-
-    addr_row = footer_row + 1
-    ws.merge_cells(f'A{addr_row}:A{addr_row}')
-    ws[f'A{addr_row}'] = "Imzouren AL Hoceima"
-    ws[f'A{addr_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'A{addr_row}'].alignment = Alignment(horizontal='center')
-
-    base = safe_filename(data['client_name'])
-    name = f"{base}.xlsx"
-    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-        wb.save(tmp.name)
-        tmp.seek(0)
-        return send_file(tmp.name, as_attachment=True, download_name=name)
-
-
-@app.route("/preview", methods=["POST"])
-@login_required
-def preview():
-    data = request.get_json()
-    return render_template("invoice_pdf.html", data=data, company_name=COMPANY_NAME, company_address=COMPANY_ADDRESS)
-
-
-@app.route("/save_invoice", methods=["POST"])
-@login_required
-def save_invoice_route():
-    data = request.get_json()
-    try:
-        invoice_id = save_invoice(data)
-        if invoice_id is None:
-            return jsonify({"error": "Facture non trouvée"}), 404
-        return jsonify({"id": invoice_id})
-    except Exception as e:
-        db.session.rollback()
-        app.logger.exception("Error saving invoice")
-        return jsonify({"error": f"Erreur lors de l'enregistrement de la facture: {str(e)}"}), 500
-
-
-def get_invoice_by_id(invoice_id):
-    invoice = db.session.get(Invoice, invoice_id)
-    if not invoice:
-        return None
-    return {
-        "id": invoice.id,
-        "invoice_num": invoice.invoice_num,
-        "date": invoice.date,
-        "client_name": invoice.client_name,
-        "client_address": invoice.client_address,
-        "total": invoice.total,
-        "remise": invoice.remise,
-        "payer": invoice.payer,
-        "net_total": invoice.net_total,
-        "items": invoice.items,
-        "show_facture_num": invoice.show_facture_num
-    }
-
-
-@app.route("/invoices/<int:invoice_id>/json")
-@login_required
-def get_invoice_json(invoice_id):
-    """Return a single invoice as JSON — used by the frontend edit form."""
-    data = get_invoice_by_id(invoice_id)
-    if not data:
-        return jsonify({"error": "Facture non trouvée"}), 404
-    return jsonify(data)
-
-
-@app.route("/invoices")
-@login_required
-def invoices_list():
-    try:
-        rows = Invoice.query.order_by(Invoice.id.desc()).all()
-        invoices = [
-            {
-                "id": inv.id,
-                "invoice_num": inv.invoice_num,
-                "date": inv.date,
-                "client_name": inv.client_name,
-                "net_total": inv.net_total,
-                "created_at": inv.created_at
-            }
-            for inv in rows
-        ]
-    except Exception:
-        invoices = []
-    return render_template("invoices.html", invoices=invoices)
-
-
-@app.route("/invoices/<int:invoice_id>/pdf")
-@login_required
-def download_saved_pdf(invoice_id):
-    data = get_invoice_by_id(invoice_id)
-    if not data:
-        return "Facture non trouvée", 404
-
-    pdf = InvoicePDF()
-    pdf._client_name = data.get("client_name", "")
-    pdf._date = data.get("date", "")
-    pdf._facture_num = data.get("invoice_num", "")
-    pdf._show_facture_num = bool(data.get("show_facture_num", False))
-    pdf.set_auto_page_break(auto=True, margin=30)
-    pdf.add_page()
-
-    col_w = [72, 28, 44, 38]
-    headers = ["Description", "Quantité", "Prix DH", "Montant DH"]
-
-    def draw_table_header():
-        pdf.set_font("Helvetica", "B", 9)
-        pdf.set_fill_color(*GRAY_BG)
-        pdf.set_text_color(*DARK)
-        pdf.set_draw_color(0, 0, 0)
-        for i, h in enumerate(headers):
-            pdf.cell(col_w[i], 8, h, border=1, align="C", fill=True)
-        pdf.ln()
-
-    draw_table_header()
-
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_font("Helvetica", "B", 9)
-    pdf.set_text_color(*DARK)
-    last_page = pdf.page_no()
-    for item in data['items']:
-        if pdf.page_no() != last_page:
-            draw_table_header()
-            last_page = pdf.page_no()
-        pdf.cell(col_w[0], 7, item['description'], border=1)
-        pdf.cell(col_w[1], 7, str(item['quantity']), border=1, align="C")
-        pdf.cell(col_w[2], 7, f"{item['unit_price']:,.2f}".replace(',', ' '), border=1, align="C")
-        pdf.cell(col_w[3], 7, f"{item['total']:,.2f}".replace(',', ' '), border=1, align="C")
-        pdf.ln()
-
-    # Total
-    total = data['total']
-    remise = data.get('remise', 0)
-    payer = data.get('payer', 0)
-    net_total = data.get('net_total', total)
-
-    pdf.ln(4)
-    total_x = pdf.l_margin + col_w[0] + col_w[1]
-
-    pdf.set_draw_color(0, 0, 0)
-
-    def price_line(label, value, val_color=None, bold=False):
-        pdf.set_x(total_x)
-        pdf.set_fill_color(*GRAY_BG)
-        pdf.set_draw_color(0, 0, 0)
-        pdf.set_font("Helvetica", "B" if bold else "", 10)
-        if val_color:
-            pdf.set_text_color(*val_color)
-        else:
-            pdf.set_text_color(*DARK)
-        pdf.cell(col_w[2], 10, label, border=1, align="C", fill=True)
-        pdf.cell(col_w[3], 10, value, border=1, align="C", fill=True)
-        pdf.ln(10)
-
-    if remise > 0 or payer > 0:
-        price_line("Total en DH", f"{total:,.2f} DH".replace(',', ' '))
-    if remise > 0:
-        price_line("Remise en DH", f"-{remise:,.2f} DH".replace(',', ' '))
-    if payer > 0:
-        price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
-    price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
-
-    name = f"{safe_filename(data['client_name'])}.pdf"
-    buf = BytesIO()
-    pdf.output(buf)
-    buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name=name, mimetype="application/pdf")
-
-
-@app.route("/invoices/<int:invoice_id>/excel")
-@login_required
-def download_saved_excel(invoice_id):
-    data = get_invoice_by_id(invoice_id)
-    if not data:
-        return "Facture non trouvée", 404
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Facture"
-
-    GOLD_HEX = "C9A84C"
-    GRAY_HEX = "F0F0F0"
-
-    thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
-    gray_fill = PatternFill(start_color=GRAY_HEX, end_color=GRAY_HEX, fill_type="solid")
-
-    ws.column_dimensions['A'].width = 38
-    ws.column_dimensions['B'].width = 14
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 18
-
-    # Header
-    ws.merge_cells('A1:C1')
-    ws['A1'] = "COCINA ESPAÑOLA"
-    ws['A1'].font = Font(name="Arial", bold=True, size=20, color=GOLD_HEX)
-
-    ws.merge_cells('A2:C2')
-    ws['A2'] = "Art MDF"
-    ws['A2'].font = Font(name="Arial", italic=True, size=14, color=GOLD_HEX)
-
-    ws.merge_cells('D1:D2')
-    ws['D1'] = "Rue Tange Center Al hirafiyin N 25"
-    ws['D1'].font = Font(name="Arial", size=9, color="555555")
-    ws['D1'].alignment = Alignment(horizontal='right', vertical='center')
-
-    ws.merge_cells('D3:D3')
-    ws['D3'] = "Imzouren AL Hoceima"
-    ws['D3'].font = Font(name="Arial", size=9, color="555555")
-    ws['D3'].alignment = Alignment(horizontal='right')
-
-    ws['C4'] = "Client:"
-    ws['C4'].font = Font(name="Arial", bold=True, size=10, color="333333")
-    ws['C4'].alignment = Alignment(horizontal='right')
-
-    ws['D4'] = data.get("client_name", "")
-    ws['D4'].font = Font(name="Arial", bold=True, size=10, color="333333")
-    ws['D4'].alignment = Alignment(horizontal='right')
-
-    # Title
-    ws.merge_cells('A6:D6')
-    title = "FACTURE"
-    fn = data.get("invoice_num", "")
-    if fn:
-        title += f" N\u00b0 {fn}"
-    ws['A6'] = title
-    ws['A6'].font = Font(name="Arial", bold=True, size=18, color="333333")
-    ws['A6'].alignment = Alignment(horizontal='center')
-
-    # Gold underline (row 7) - use bottom border on row 6 instead
-    ws['A6'].border = Border(bottom=Side(style='medium', color=GOLD_HEX))
-
-    # Date
-    ws.merge_cells('C8:D8')
-    ws['C8'] = f"Date de facture: {data.get('date', '')}"
-    ws['C8'].font = Font(name="Arial", size=10, color="555555")
-    ws['C8'].alignment = Alignment(horizontal='right')
-
-    # Table header
-    headers = ['Description', 'Quantité', 'Prix DH', 'Montant DH']
-    header_row = 10
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=header_row, column=col, value=h)
-        cell.font = Font(name="Arial", bold=True, size=10, color="333333")
-        cell.fill = gray_fill
-        cell.alignment = Alignment(horizontal='center')
-        cell.border = thin_border
-
-    # Table rows
-    for i, item in enumerate(data['items']):
-        r = header_row + 1 + i
-        ws.cell(row=r, column=1, value=item['description']).border = thin_border
-        ws.cell(row=r, column=1).font = Font(name="Arial", size=10)
-        ws.cell(row=r, column=2, value=item['quantity']).border = thin_border
-        ws.cell(row=r, column=2).font = Font(name="Arial", size=10)
-        ws.cell(row=r, column=3, value=item['unit_price']).border = thin_border
-        ws.cell(row=r, column=3).font = Font(name="Arial", size=10)
-        ws.cell(row=r, column=4, value=item['total']).border = thin_border
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=10)
-        for c in range(1, 5):
-            ws.cell(row=r, column=c).alignment = Alignment(horizontal='center')
-
-    # Total lines
-    total = data['total']
-    remise = data.get('remise', 0)
-    payer = data.get('payer', 0)
-    net_total = data.get('net_total', total)
-
-    r = header_row + 1 + len(data['items']) + 1
-
-    if remise > 0 or payer > 0:
-        # Total en DH
-        ws.cell(row=r, column=3, value="Total en DH")
-        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-        ws.cell(row=r, column=3).fill = gray_fill
-        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=3).border = thin_border
-        ws.cell(row=r, column=4, value=total)
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
-        ws.cell(row=r, column=4).fill = gray_fill
-        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=4).border = thin_border
-        r += 1
-
-    if remise > 0:
-        # Remise en DH
-        ws.cell(row=r, column=3, value="Remise en DH")
-        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-        ws.cell(row=r, column=3).fill = gray_fill
-        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=3).border = thin_border
-        ws.cell(row=r, column=4, value=-remise)
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
-        ws.cell(row=r, column=4).fill = gray_fill
-        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=4).border = thin_border
-        r += 1
-
-    if payer > 0:
-        # Payer en DH
-        ws.cell(row=r, column=3, value="Payer en DH")
-        ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-        ws.cell(row=r, column=3).fill = gray_fill
-        ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=3).border = thin_border
-        ws.cell(row=r, column=4, value=-payer)
-        ws.cell(row=r, column=4).font = Font(name="Arial", size=12)
-        ws.cell(row=r, column=4).fill = gray_fill
-        ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-        ws.cell(row=r, column=4).border = thin_border
-        r += 1
-
-    # Total a Payer en DH
-    ws.cell(row=r, column=3, value="Total à Payer en DH")
-    ws.cell(row=r, column=3).font = Font(name="Arial", bold=True, size=11, color="333333")
-    ws.cell(row=r, column=3).fill = gray_fill
-    ws.cell(row=r, column=3).alignment = Alignment(horizontal='center')
-    ws.cell(row=r, column=3).border = thin_border
-    ws.cell(row=r, column=4, value=net_total)
-    ws.cell(row=r, column=4).font = Font(name="Arial", bold=True, size=12, color=GOLD_HEX)
-    ws.cell(row=r, column=4).fill = gray_fill
-    ws.cell(row=r, column=4).alignment = Alignment(horizontal='center')
-    ws.cell(row=r, column=4).border = thin_border
-
-    # Footer
-    footer_row = r + 2
-    ws.merge_cells(f'A{footer_row}:A{footer_row}')
-    ws[f'A{footer_row}'] = "Rue Tange Center Al hirafiyin N 25"
-    ws[f'A{footer_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'A{footer_row}'].alignment = Alignment(horizontal='center')
-
-    ws.merge_cells(f'B{footer_row}:C{footer_row}')
-    ws[f'B{footer_row}'] = "Tel: +212 6 71 68 75 98"
-    ws[f'B{footer_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'B{footer_row}'].alignment = Alignment(horizontal='center')
-
-    ws.merge_cells(f'D{footer_row}:D{footer_row}')
-    ws[f'D{footer_row}'] = "Instagram: cocinaespanola"
-    ws[f'D{footer_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'D{footer_row}'].alignment = Alignment(horizontal='center')
-
-    addr_row = footer_row + 1
-    ws.merge_cells(f'A{addr_row}:A{addr_row}')
-    ws[f'A{addr_row}'] = "Imzouren AL Hoceima"
-    ws[f'A{addr_row}'].font = Font(name="Arial", size=8, color="888888")
-    ws[f'A{addr_row}'].alignment = Alignment(horizontal='center')
-
-    base = safe_filename(data['client_name'])
-    name = f"{base}.xlsx"
-    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-        wb.save(tmp.name)
-        tmp.seek(0)
-        return send_file(tmp.name, as_attachment=True, download_name=name)
-
-
-@app.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
-@login_required
-def delete_invoice_route(invoice_id):
-    try:
-        invoice = db.session.get(Invoice, invoice_id)
-        if invoice:
-            db.session.delete(invoice)
-            db.session.commit()
-        return jsonify({"success": True})
-    except Exception:
-        db.session.rollback()
-        return jsonify({"error": "Erreur lors de la suppression."}), 500
-
-
-# ---------------------------------------------------------------------------
-# Authentication routes
-# ---------------------------------------------------------------------------
-
-
-@app.route('/sw.js')
-def service_worker():
-    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
-
-
-@app.route('/offline')
-def offline():
-    return render_template('offline.html')
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if "user_id" in session:
-        return redirect(url_for("index"))
-    if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-        user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
-            session["user_id"] = user.id
-            session["username"] = user.username
-            return redirect(url_for("index"))
-        return render_template("login.html", error="Nom d'utilisateur ou mot de passe incorrect.")
-    return render_template("login.html")
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-
-@app.route("/change-password", methods=["GET", "POST"])
-@login_required
-def change_password():
-    if request.method == "POST":
-        current = request.form.get("current_password", "")
-        new_pass = request.form.get("new_password", "")
-        confirm = request.form.get("confirm_password", "")
-        user = db.session.get(User, session["user_id"])
-        if not user or not check_password_hash(user.password_hash, current):
-            return render_template("change_password.html", error="Mot de passe actuel incorrect.")
-        if new_pass != confirm:
-            return render_template("change_password.html", error="Les nouveaux mots de passe ne correspondent pas.")
-        if len(new_pass) < 8:
-            return render_template("change_password.html", error="Le mot de passe doit contenir au moins 8 caractères.")
-        user.password_hash = generate_password_hash(new_pass)
-        db.session.commit()
-        return render_template("change_password.html", success="Mot de passe modifié avec succès.")
-    return render_template("change_password.html")
-
-
-if __name__ == "__main__":
-    os.makedirs("generated", exist_ok=True)
-    app.run(debug=True, use_reloader=False)
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
