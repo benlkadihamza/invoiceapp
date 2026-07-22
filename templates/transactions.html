@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Transactions - FinanceApp{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h4 class="fw-bold mb-0"><i class="bi bi-list-ul me-2"></i>Transactions</h4>
+    <a href="{{ url_for('transactions.add') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Ajouter
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Du</label>
+                <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from or '' }}">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Au</label>
+                <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to or '' }}">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Personne</label>
+                <select name="person_id" class="form-select form-select-sm">
+                    <option value="0">Toutes</option>
+                    {% for p in persons %}
+                    <option value="{{ p.id }}" {% if filters.person_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Paiement</label>
+                <select name="payment_method_id" class="form-select form-select-sm">
+                    <option value="0">Tous</option>
+                    {% for pm in payment_methods %}
+                    <option value="{{ pm.id }}" {% if filters.payment_method_id == pm.id %}selected{% endif %}>{{ pm.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Recherche</label>
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Chercher..." value="{{ filters.search or '' }}">
+            </div>
+            <div class="col-6 col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i></button>
+            </div>
+            <div class="col-6 col-md-1">
+                <a href="{{ url_for('transactions.index') }}" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="transactionsTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-3">Date</th>
+                        <th>Personne</th>
+                        <th>Description</th>
+                        <th class="text-end">Revenu (DH)</th>
+                        <th class="text-end">Dépense (DH)</th>
+                        <th class="text-end">Net (DH)</th>
+                        <th class="text-end">Solde</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in transactions %}
+                    {% set t = item.transaction %}
+                    <tr class="{% if t.income > 0 %}table-success-custom{% else %}table-danger-custom{% endif %}">
+                        <td class="ps-3">
+                            <small class="text-muted">{{ t.formatted_date }}</small>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ t.person.name if t.person else '?' }}</span></td>
+                        <td>
+                            {{ t.description }}
+                            {% if t.payment_method %}
+                            <br><small class="text-muted"><i class="bi bi-credit-card"></i> {{ t.payment_method.name }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-success">
+                            {% if t.income > 0 %}+{{ "{:,.2f}".format(t.income) }}{% else %}-{% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-danger">
+                            {% if t.expense > 0 %}{{ "{:,.2f}".format(t.expense) }}{% else %}-{% endif %}
+                        </td>
+                        <td class="text-end fw-bold {% if t.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if t.net >= 0 %}+{% endif %}{{ "{:,.2f}".format(t.net) }}
+                        </td>
+                        <td class="text-end">{{ "{:,.2f}".format(item.balance) }}</td>
+                        <td class="text-center text-nowrap">
+                            <a href="{{ url_for('transactions.edit', id=t.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{{ url_for('transactions.duplicate', id=t.id) }}" class="btn btn-sm btn-outline-secondary" title="Dupliquer">
+                                <i class="bi bi-copy"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger" title="Supprimer"
+                                    onclick="confirmDelete('{{ url_for('transactions.delete', id=t.id) }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not transactions %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucune transaction trouvée</td></tr>
+                    {% endif %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="3" class="ps-3">Totaux</td>
+                        <td class="text-end text-success">{{ "{:,.2f}".format(total_income) }} DH</td>
+                        <td class="text-end text-danger">{{ "{:,.2f}".format(total_expense) }} DH</td>
+                        <td class="text-end {% if total_income - total_expense >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(total_income - total_expense) }} DH
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
