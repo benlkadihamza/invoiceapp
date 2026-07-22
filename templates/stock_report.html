@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Rapport Mensuel de Stock - FinanceApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-file-earmark-bar-graph me-2"></i>Rapport Mensuel de Stock</h2>
+        <small class="text-muted">Mouvements de stock et état de l'inventaire par mois</small>
+    </div>
+    <a href="{{ url_for('stock.stock_page') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Retour à l'inventaire
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="report-month" class="form-label fw-bold">Mois</label>
+                <select id="report-month" class="form-select">
+                    <option value="1" {% if selected_month == 1 %}selected{% endif %}>Janvier</option>
+                    <option value="2" {% if selected_month == 2 %}selected{% endif %}>Février</option>
+                    <option value="3" {% if selected_month == 3 %}selected{% endif %}>Mars</option>
+                    <option value="4" {% if selected_month == 4 %}selected{% endif %}>Avril</option>
+                    <option value="5" {% if selected_month == 5 %}selected{% endif %}>Mai</option>
+                    <option value="6" {% if selected_month == 6 %}selected{% endif %}>Juin</option>
+                    <option value="7" {% if selected_month == 7 %}selected{% endif %}>Juillet</option>
+                    <option value="8" {% if selected_month == 8 %}selected{% endif %}>Août</option>
+                    <option value="9" {% if selected_month == 9 %}selected{% endif %}>Septembre</option>
+                    <option value="10" {% if selected_month == 10 %}selected{% endif %}>Octobre</option>
+                    <option value="11" {% if selected_month == 11 %}selected{% endif %}>Novembre</option>
+                    <option value="12" {% if selected_month == 12 %}selected{% endif %}>Décembre</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="report-year" class="form-label fw-bold">Année</label>
+                <select id="report-year" class="form-select">
+                    {% for y in range(2023, 2030) %}
+                    <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button class="btn btn-primary w-100" onclick="loadReport()">
+                    <i class="bi bi-filter me-1"></i>Filtrer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end gap-2 mb-3">
+    <button class="btn btn-outline-danger" onclick="exportPDF()">
+        <i class="bi bi-file-earmark-pdf me-1"></i>Télécharger PDF
+    </button>
+    <button class="btn btn-outline-success" onclick="exportExcel()">
+        <i class="bi bi-file-earmark-excel me-1"></i>Télécharger Excel
+    </button>
+</div>
+
+<!-- Section 1: Mouvements de Stock -->
+<h4 class="fw-bold mb-3 border-bottom pb-2" style="color: #C9A84C;">Section 1: Mouvements de Stock</h4>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm text-center p-3 border-start border-success border-4">
+            <div class="fs-2 fw-bold text-success">+{{ total_added }}</div>
+            <small class="text-muted fw-semibold">Total Ajoutés</small>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm text-center p-3 border-start border-danger border-4">
+            <div class="fs-2 fw-bold text-danger">-{{ total_removed }}</div>
+            <small class="text-muted fw-semibold">Total Retirés</small>
+        </div>
+    </div>
+</div>
+
+{% if report_data %}
+<div class="card border-0 shadow-sm mb-5">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date & Heure</th>
+                    <th>Produit</th>
+                    <th class="text-center">Opération</th>
+                    <th class="text-center">Quantité</th>
+                    <th class="text-center">Stock Avant</th>
+                    <th class="text-center">Stock Après</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_data %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td class="fw-semibold">{{ row.product }}</td>
+                    <td class="text-center">
+                        {% if row.operation == 'ADD' %}
+                            <span class="badge bg-success">+ AJOUT</span>
+                        {% else %}
+                            <span class="badge bg-danger">- RETRAIT</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center fw-bold">{{ row.quantity }}</td>
+                    <td class="text-center text-muted">{{ row.stock_before }}</td>
+                    <td class="text-center fw-bold">{{ row.stock_after }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm text-center p-4 mb-5">
+    <p class="text-muted mb-0">Aucune opération de stock enregistrée pour ce mois.</p>
+</div>
+{% endif %}
+
+<!-- Section 2: État du Stock Actuel -->
+<h4 class="fw-bold mb-3 border-bottom pb-2" style="color: #C9A84C;">Section 2: État du Stock Actuel</h4>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-3 fw-bold text-primary">{{ total_products }}</div>
+            <small class="text-muted">Produits</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-3 fw-bold text-success">{{ in_stock_count }}</div>
+            <small class="text-muted">En Stock</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-3 fw-bold text-warning">{{ low_stock_count }}</div>
+            <small class="text-muted">Stock Bas</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center p-3">
+            <div class="fs-3 fw-bold text-danger">{{ finished_count }}</div>
+            <small class="text-muted">Rupture</small>
+        </div>
+    </div>
+</div>
+
+{% if stock_status %}
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th>Produit</th>
+                    <th class="text-center">Stock Actuel</th>
+                    <th class="text-center">Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in stock_status %}
+                <tr class="{% if item.status == 'FINISHED' %}table-danger{% elif item.status == 'LOW STOCK' %}table-warning{% endif %}">
+                    <td>{{ loop.index }}</td>
+                    <td class="fw-semibold">{{ item.title }}</td>
+                    <td class="text-center fw-bold">{{ item.stock_quantity }}</td>
+                    <td class="text-center">
+                        {% if item.status == 'FINISHED' %}
+                            <span class="badge bg-danger">Terminé</span>
+                        {% elif item.status == 'LOW STOCK' %}
+                            <span class="badge bg-warning text-dark">Stock Bas</span>
+                        {% else %}
+                            <span class="badge bg-success">En Stock</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm text-center p-4">
+    <p class="text-muted mb-0">Aucun produit enregistré.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function loadReport() {
+        const month = document.getElementById('report-month').value;
+        const year = document.getElementById('report-year').value;
+        window.location.href = '{{ url_for("stock.stock_report") }}?month=' + month + '&year=' + year;
+    }
+
+    function exportPDF() {
+        const month = document.getElementById('report-month').value;
+        const year = document.getElementById('report-year').value;
+        fetch('{{ url_for("stock.stock_report_pdf") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ month: parseInt(month), year: parseInt(year) })
+        }).then(function(res) {
+            if (!res.ok) throw new Error('Erreur');
+            return res.blob();
+        }).then(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rapport_stock_' + year + '_' + String(month).padStart(2, '0') + '.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }).catch(function() {
+            alert('Erreur lors de l\'export PDF.');
+        });
+    }
+
+    function exportExcel() {
+        const month = document.getElementById('report-month').value;
+        const year = document.getElementById('report-year').value;
+        fetch('{{ url_for("stock.stock_report_excel") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ month: parseInt(month), year: parseInt(year) })
+        }).then(function(res) {
+            if (!res.ok) throw new Error('Erreur');
+            return res.blob();
+        }).then(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rapport_stock_' + year + '_' + String(month).padStart(2, '0') + '.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }).catch(function() {
+            alert('Erreur lors de l\'export Excel.');
+        });
+    }
+</script>
+{% endblock %}
