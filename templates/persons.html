@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Personnes - FinanceApp{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h4 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>Personnes</h4>
+    <a href="{{ url_for('persons.add') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Ajouter</a>
+</div>
+
+<div class="row g-3">
+    {% for p in persons %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="fw-bold mb-1">{{ p.name }}</h5>
+                        {% if p.phone %}<small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ p.phone }}</small><br>{% endif %}
+                        {% if p.email %}<small class="text-muted"><i class="bi bi-envelope me-1"></i>{{ p.email }}</small>{% endif %}
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('persons.edit', id=p.id) }}"><i class="bi bi-pencil me-2"></i>Modifier</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><button class="dropdown-item text-danger" onclick="confirmDelete('{{ url_for('persons.delete', id=p.id) }}')"><i class="bi bi-trash me-2"></i>Supprimer</button></li>
+                        </ul>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted d-block">Transactions</small>
+                        <strong>{{ p.transaction_count() }}</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Revenus</small>
+                        <strong class="text-success">{{ "{:,.0f}".format(p.total_income()) }}</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Solde</small>
+                        <strong class="{% if p.net_balance() >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.0f}".format(p.net_balance()) }}
+                        </strong>
+                    </div>
+                </div>
+                {% if p.notes %}
+                <hr>
+                <small class="text-muted"><i class="bi bi-sticky me-1"></i>{{ p.notes[:80] }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not persons %}
+    <div class="col-12 text-center text-muted py-5">Aucune personne enregistrée</div>
+    {% endif %}
+</div>
+{% endblock %}
