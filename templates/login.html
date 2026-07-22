@@ -1,25 +1,53 @@
-{% extends "base.html" %}
-{% block title %}Connexion{% endblock %}
-{% block content %}
-<header>
-    <h1 style="margin:0;">Connexion</h1>
-</header>
-<form method="POST">
-    {% if error %}
-    <div class="alert alert-error">{{ error }}</div>
-    {% endif %}
-    <section class="form-section">
-        <div class="form-group">
-            <label for="username">Nom d'utilisateur</label>
-            <input type="text" id="username" name="username" required autofocus>
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - FinanceApp</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .login-card { max-width: 420px; margin: auto; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+    <div class="card login-card border-0">
+        <div class="card-body p-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-wallet2 display-4 text-primary"></i>
+                <h3 class="mt-2 fw-bold">FinanceApp</h3>
+                <p class="text-muted">Gestion des finances personnelles</p>
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">{{ form.username.label.text }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        {{ form.username(class="form-control", placeholder="Entrez votre nom", autofocus=true) }}
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">{{ form.password.label.text }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        {{ form.password(class="form-control", placeholder="Entrez votre mot de passe") }}
+                    </div>
+                </div>
+                {{ form.submit(class="btn btn-primary w-100 btn-lg") }}
+            </form>
         </div>
-        <div class="form-group" style="margin-top:15px;">
-            <label for="password">Mot de passe</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-    </section>
-    <div class="actions">
-        <button type="submit" class="btn btn-primary" style="width:100%;">Se connecter</button>
     </div>
-</form>
-{% endblock %}
+</body>
+</html>
