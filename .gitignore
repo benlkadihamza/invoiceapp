@@ -1,7 +1,12 @@
 __pycache__/
 *.pyc
-generated/
-*.pdf
-*.xlsx
-server.log
-nul
+*.pyo
+*.db
+uploads/*
+!uploads/.gitkeep
+reports/*
+!reports/.gitkeep
+.env
+venv/
+.vscode/
+.idea/
