@@ -222,8 +222,6 @@ def get_invoice_json(invoice_id):
 def generate_pdf():
     data = request.get_json(silent=True) or {}
 
-    print("[PDF] Received items:", [item.get('description', '') for item in data.get('items', [])])
-
     pdf = InvoicePDF()
     pdf._client_name = data.get("client_name", "")
     pdf._date = data.get("date", "")
@@ -253,11 +251,7 @@ def generate_pdf():
         if pdf.page_no() != last_page:
             draw_table_header()
             last_page = pdf.page_no()
-        desc = item.get("description", "")
-        print("DESC =", repr(desc))
-
-        pdf.set_fill_color(255, 255, 0)  # أصفر للتجربة
-        pdf.cell(col_w[0], 7, "TEST", border=1, fill=True)
+        pdf.cell(col_w[0], 7, item.get('description', ''), border=1)
         pdf.cell(col_w[1], 7, str(item.get('quantity', 0)), border=1, align="C")
         pdf.cell(col_w[2], 7, f"{item.get('unit_price', 0):,.2f}".replace(',', ' '), border=1, align="C")
         pdf.cell(col_w[3], 7, f"{item.get('total', 0):,.2f}".replace(',', ' '), border=1, align="C")
