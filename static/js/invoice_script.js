@@ -468,8 +468,6 @@ document.getElementById('btn-pdf').addEventListener('click', async () => {
     const data = getFormData();
     if (!data.items.length) return alert('Ajoutez au moins un article.');
 
-    console.log('[PDF] FormData being sent:', JSON.parse(JSON.stringify(data)));
-
     const wasEditing = currentInvoiceId !== null;
 
     let savedId;
@@ -492,33 +490,25 @@ document.getElementById('btn-pdf').addEventListener('click', async () => {
         alert("Erreur lors de l'enregistrement de la facture. Le PDF n'a pas été généré.");
         return;
     }
-    
+
     try {
-        const pdfRes = await fetch('/invoices/generate_pdf', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify(data)
-        });
+        const pdfRes = await fetch(`/invoices/${savedId}/pdf`);
         const blob = await pdfRes.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = getFilenameFromHeaders(pdfRes) || `facture_${data.invoice_num}.pdf`;
-        document.body.appendChild(a);
         a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 1000);
-
-        showSuccessBanner(wasEditing
-            ? `Facture mise à jour et PDF téléchargé. ID : ${savedId}`
-            : `Facture enregistrée et PDF téléchargé. ID : ${savedId}`);
+        URL.revokeObjectURL(url);
     } catch (e) {
         alert('Erreur lors de la génération du PDF.');
+        return;
+    }
+
+    if (wasEditing) {
+        showSuccessBanner(`Facture mise à jour et PDF téléchargé. ID : ${savedId}`);
+    } else {
+        resetFormToNewInvoice();
     }
 });
 
