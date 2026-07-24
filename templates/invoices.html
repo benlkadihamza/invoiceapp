@@ -84,26 +84,25 @@
         return meta ? meta.getAttribute('content') : '';
     }
 
-    async function deleteInvoice(invoiceId) {
-        if (!confirm("Êtes-vous sûr de vouloir supprimer cette facture ?")) {
-            return;
-        }
-        try {
-            const res = await fetch(`/invoices/${invoiceId}/delete`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCsrfToken()
+    function deleteInvoice(invoiceId) {
+        confirmDelete(async function() {
+            try {
+                const res = await fetch(`/invoices/${invoiceId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                const result = await res.json();
+                if (result && result.success) {
+                    window.location.reload();
+                } else {
+                    alert("Erreur lors de la suppression de la facture.");
                 }
-            });
-            const result = await res.json();
-            if (result && result.success) {
-                window.location.reload();
-            } else {
+            } catch (e) {
                 alert("Erreur lors de la suppression de la facture.");
             }
-        } catch (e) {
-            alert("Erreur lors de la suppression de la facture.");
-        }
+        }, "Êtes-vous sûr de vouloir supprimer cette facture ? Cette action est irréversible.");
     }
 
     document.getElementById('search-input')?.addEventListener('input', (e) => {
