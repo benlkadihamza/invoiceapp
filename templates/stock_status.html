@@ -50,8 +50,8 @@
             <div class="col-md-6">
                 <input type="text" id="search-input" class="form-control" placeholder="Rechercher par nom de produit...">
             </div>
-            <div class="col-md-6 d-flex justify-content-md-end gap-2">
-                <div class="btn-group btn-group-sm" role="group">
+            <div class="col-md-6 d-flex justify-content-start justify-content-md-end gap-2 overflow-auto">
+                <div class="btn-group btn-group-sm flex-wrap" role="group">
                     <button type="button" class="btn btn-outline-secondary filter-btn active" data-filter="all" onclick="setFilter('all', this)">Tous</button>
                     <button type="button" class="btn btn-outline-success filter-btn" data-filter="in-stock" onclick="setFilter('in-stock', this)">En Stock</button>
                     <button type="button" class="btn btn-outline-warning filter-btn" data-filter="low-stock" onclick="setFilter('low-stock', this)">Stock Bas</button>
