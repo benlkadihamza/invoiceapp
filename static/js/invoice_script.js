@@ -1,3 +1,8 @@
+// ==========================================================================
+// INVOICE GENERATOR JAVASCRIPT (invoice_script.js)
+// Refactored for ultra-responsive UI behavior without altering business logic
+// ==========================================================================
+
 const SUGGESTIONS = [
     "Cuisine",
     "Protection Bas De L'évier",
@@ -32,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Update dropdown positioning smoothly on scroll and window resize
 window.addEventListener('scroll', () => {
     if (acTarget && acDropdown && acDropdown.classList.contains('active')) {
         positionDropdown(acTarget);
@@ -269,25 +275,19 @@ function positionDropdown(input) {
     if (!input || !acDropdown) return;
     const rect = input.getBoundingClientRect();
     const isMobile = window.innerWidth < 768;
+    const dropdownHeight = acDropdown.offsetHeight || 180;
 
-    if (isMobile) {
-        // Mobile: always position below the input, never close early.
-        // The virtual keyboard changes window.innerHeight, so the
-        // off-screen check below would wrongly close the dropdown.
-        acDropdown.style.top = rect.bottom + 'px';
-        acDropdown.style.left = rect.left + 'px';
-        acDropdown.style.width = rect.width + 'px';
-    } else {
-        // Desktop: close if the input has scrolled out of view.
-        if (rect.bottom < 0 || rect.top > window.innerHeight ||
-            rect.right < 0 || rect.left > window.innerWidth) {
-            closeAcDropdown();
-            return;
-        }
-        acDropdown.style.top = rect.bottom + 'px';
-        acDropdown.style.left = rect.left + 'px';
-        acDropdown.style.width = rect.width + 'px';
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    let top = rect.bottom;
+    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight && !isMobile) {
+        top = rect.top - dropdownHeight;
     }
+
+    acDropdown.style.top = Math.max(0, top) + 'px';
+    acDropdown.style.left = Math.max(8, rect.left) + 'px';
+    acDropdown.style.width = Math.min(rect.width, window.innerWidth - 16) + 'px';
 }
 
 function closeAcDropdown() {
