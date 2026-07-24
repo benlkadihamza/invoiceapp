@@ -354,22 +354,23 @@
         }
     }
 
-    async function deleteProduct(productId) {
-        if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
-        try {
-            const res = await fetch('/stock/delete/' + productId, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCsrfToken() }
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.error || 'Erreur lors de la suppression.');
+    function deleteProduct(productId) {
+        confirmDelete(async function() {
+            try {
+                const res = await fetch('/stock/delete/' + productId, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrfToken() }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors de la suppression.');
+                }
+            } catch (err) {
+                alert('Erreur de connexion.');
             }
-        } catch (err) {
-            alert('Erreur de connexion.');
-        }
+        }, "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.");
     }
 
     document.getElementById('search-input')?.addEventListener('input', function(e) {
