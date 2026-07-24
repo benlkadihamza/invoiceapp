@@ -590,8 +590,12 @@ form {
     form { padding: 15px; }
     .form-row { flex-direction: column; gap: 10px; }
     .form-group { min-width: 100%; }
-    .actions { flex-direction: column; }
-    .btn { width: 100%; }
+    .actions { flex-direction: column; width: 100%; }
+    .actions .btn { width: 100%; min-height: 44px; }
     .nav-inner { flex-direction: column; gap: 8px; }
     .nav-links { flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .modal { padding: 10px; }
+    .modal-content { max-width: 100%; border-radius: 8px; }
+    .modal-body { padding: 15px; }
+    .modal-body iframe { height: 75vh; }
 }
