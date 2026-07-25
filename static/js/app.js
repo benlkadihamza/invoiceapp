@@ -779,7 +779,10 @@ async function handleInvoiceExcelDownload() {
 
 async function handleInvoiceSave() {
     const data = getFormData();
-    if (!data.items.length) return alert('Ajoutez au moins un article.');
+    if (!data.items.length) {
+        showErrorBanner('Ajoutez au moins un article.');
+        return;
+    }
 
     const wasEditing = currentInvoiceId !== null;
 
@@ -795,16 +798,16 @@ async function handleInvoiceSave() {
         const result = await res.json();
         if (result && result.id) {
             if (wasEditing) {
-                alert(`Facture mise à jour avec succès. ID: ${result.id}`);
+                window.location.href = result.redirect || '/invoices/';
             } else {
                 resetFormToNewInvoice();
             }
         } else {
             const msg = result && result.error ? result.error : "Erreur lors de l'enregistrement de la facture.";
-            alert(msg);
+            showErrorBanner(msg);
         }
     } catch (e) {
-        alert("Erreur lors de l'enregistrement de la facture.");
+        showErrorBanner("Erreur lors de l'enregistrement de la facture.");
         console.error(e);
     }
 }
@@ -873,6 +876,43 @@ function showSuccessBanner(message) {
         left: '50%',
         transform: 'translateX(-50%)',
         background: '#27ae60',
+        color: '#fff',
+        padding: '14px 28px',
+        borderRadius: '8px',
+        fontSize: '15px',
+        fontWeight: '600',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+        zIndex: '9999',
+        cursor: 'pointer',
+        transition: 'opacity 0.4s ease',
+        whiteSpace: 'nowrap',
+        maxWidth: '90vw',
+        textAlign: 'center',
+    });
+
+    document.body.appendChild(banner);
+
+    const fadeOut = () => {
+        banner.style.opacity = '0';
+        setTimeout(() => banner.remove(), 400);
+    };
+    banner.addEventListener('click', fadeOut);
+    setTimeout(fadeOut, 4000);
+}
+
+function showErrorBanner(message) {
+    const existing = document.getElementById('error-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'error-banner';
+    banner.textContent = message;
+    Object.assign(banner.style, {
+        position: 'fixed',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: '#e74c3c',
         color: '#fff',
         padding: '14px 28px',
         borderRadius: '8px',
