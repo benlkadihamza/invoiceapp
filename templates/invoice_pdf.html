@@ -4,164 +4,175 @@
     .invoice-preview {
         font-family: Arial, Helvetica, sans-serif;
         background: #fff;
-        padding: 30px;
+        padding: 20px 24px;
         position: relative;
+        color: #333;
     }
 
-    .preview-header {
+    /* ── Header ── */
+    .pdf-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 25px;
+        margin-bottom: 10px;
     }
 
-    .preview-header-left {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-
-    .preview-logo {
-        width: 60px;
-        height: 60px;
+    .pdf-logo {
+        width: 90px;
+        height: 90px;
         flex-shrink: 0;
     }
 
-    .preview-company-name h1 {
-        font-size: 22px;
+    .pdf-header-right {
+        text-align: right;
+        line-height: 1.4;
+    }
+
+    .pdf-company-name {
+        font-size: 19px;
         font-weight: 900;
         color: #C9A84C;
         letter-spacing: 1px;
-        line-height: 1.1;
     }
 
-    .preview-company-name .art-mdf {
-        font-size: 17px;
+    .pdf-art-mdf {
+        font-size: 14px;
         font-style: italic;
         font-weight: 400;
         color: #C9A84C;
         font-family: 'Georgia', 'Times New Roman', serif;
-        letter-spacing: 0.5px;
     }
 
-    .preview-header-right {
-        text-align: right;
-        font-size: 11px;
+    .pdf-address {
+        font-size: 9px;
         color: #555;
-        line-height: 1.5;
+        margin-top: 4px;
     }
 
-    .preview-header-right .client-label {
+    .pdf-client {
+        font-size: 9px;
         font-weight: bold;
         color: #333;
-        margin-top: 8px;
-        display: block;
+        margin-top: 3px;
     }
 
-    .preview-header-right .client-value {
-        font-size: 12px;
-        color: #333;
-        font-weight: bold;
-        margin-top: 2px;
-    }
-
-    .preview-title {
+    /* ── Title ── */
+    .pdf-title {
         text-align: center;
-        margin-bottom: 15px;
+        margin: 12px 0 6px;
     }
 
-    .preview-title h2 {
-        font-size: 20px;
+    .pdf-title h2 {
+        font-size: 17px;
         font-weight: bold;
         color: #333;
         letter-spacing: 2px;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
     }
 
-    .preview-title hr {
-        border: none;
-        border-top: 2px solid #C9A84C;
-        width: 80px;
+    .pdf-title-underline {
+        width: 55px;
+        height: 2.5px;
+        background: #C9A84C;
         margin: 0 auto;
     }
 
-    .preview-date {
+    /* ── Date ── */
+    .pdf-date {
         text-align: right;
-        margin-bottom: 12px;
-        font-size: 12px;
+        font-size: 10px;
         color: #555;
+        margin-bottom: 10px;
     }
 
-    .preview-date label { font-weight: bold; color: #333; }
-
-    .preview-table-wrap { margin-bottom: 15px; }
-
-    .preview-table-wrap table {
+    /* ── Table ── */
+    .pdf-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 12px;
-    }
-
-    .preview-table-wrap thead th {
-        background: #f0f0f0;
+        font-size: 11px;
         font-weight: bold;
-        color: #333;
-        padding: 8px 6px;
-        text-align: center;
-        border: 1px solid #000;
+        margin-bottom: 0;
     }
 
-    .preview-table-wrap thead th:first-child { text-align: left; }
-
-    .preview-table-wrap tbody td {
+    .pdf-table th {
+        background: #f0f0f0;
         border: 1px solid #000;
-        padding: 6px 8px;
+        padding: 6px 4px;
+        text-align: center;
+        font-size: 10px;
+    }
+
+    .pdf-table th:first-child { text-align: left; }
+
+    .pdf-table td {
+        border: 1px solid #000;
+        padding: 5px 4px;
         text-align: center;
     }
 
-    .preview-table-wrap tbody td:first-child { text-align: left; }
+    .pdf-table td:first-child { text-align: left; }
 
-    .preview-total {
+    .pdf-table .col-desc   { width: 40%; }
+    .pdf-table .col-qty    { width: 15%; }
+    .pdf-table .col-price  { width: 24%; }
+    .pdf-table .col-amount { width: 21%; }
+
+    /* ── Totals (outside table, right-aligned) ── */
+    .pdf-totals {
         display: flex;
         justify-content: flex-end;
         margin-top: 8px;
     }
 
-    .preview-total-box {
-        background: #f0f0f0;
-        padding: 10px 20px;
+    .pdf-totals-grid {
+        width: 45%;
+    }
+
+    .pdf-totals-row {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 280px;
+    }
+
+    .pdf-totals-row td {
+        border: 1px solid #000;
+        padding: 6px 4px;
+        text-align: center;
+        font-size: 11px;
         font-weight: bold;
-        font-size: 14px;
+        background: #f0f0f0;
         color: #333;
     }
 
-    .preview-total-box .total-amount {
-        font-size: 16px;
+    .pdf-totals-row.totals-final td {
         color: #C9A84C;
+        font-size: 13px;
     }
 
-    .preview-footer {
-        margin-top: 30px;
-        padding-top: 10px;
-        border-top: 1px solid #ddd;
+    .pdf-totals-label { width: 53.3%; }
+    .pdf-totals-value { width: 46.7%; }
+
+    /* ── Footer ── */
+    .pdf-footer {
+        margin-top: 24px;
+        padding-top: 8px;
+        border-top: 1px solid #c8c8c8;
         display: flex;
         justify-content: space-between;
-        font-size: 9px;
+        font-size: 8px;
         color: #888;
         text-align: center;
     }
 
-    .preview-footer span { flex: 1; }
+    .pdf-footer span { flex: 1; }
+
+    .pdf-footer .footer-page {
+        color: #333;
+    }
 
     @media print {
         body { background: #fff; }
-        .invoice-preview { padding: 20mm; }
-        .preview-table-wrap thead th,
-        .preview-total-box {
+        .invoice-preview { padding: 15mm; }
+        .pdf-table th, .pdf-table td,
+        .pdf-totals-row td {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -170,89 +181,84 @@
 
 <div class="invoice-preview">
 
-    <div class="preview-header">
-        <div class="preview-header-left">
-            <img class="preview-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
-            <div class="preview-company-name">
-                <h1>COCINA ESPAÑOLA</h1>
-                <div class="art-mdf">Art MDF</div>
-            </div>
-        </div>
-        <div class="preview-header-right">
-            Rue Tange Center Al hirafiyin N 25<br>
-            Imzouren AL Hoceima<br>
-            <span class="client-label">Client:</span>
-            <div class="client-value">{{ data.client_name }}</div>
+    {# ── Header: logo left, company + address + client right-aligned ── #}
+    <div class="pdf-header">
+        <img class="pdf-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+        <div class="pdf-header-right">
+            <div class="pdf-company-name">COCINA ESPAÑOLA</div>
+            <div class="pdf-art-mdf">Art MDF</div>
+            <div class="pdf-address">Rue Tange Center Al hirafiyin N 25</div>
+            <div class="pdf-address">Imzouren AL Hoceima</div>
+            <div class="pdf-client">Client: {{ data.client_name }}</div>
         </div>
     </div>
 
-    <div class="preview-title">
+    {# ── Title ── #}
+    <div class="pdf-title">
         <h2>FACTURE{% if data.get('show_facture_num') and data.get('invoice_num') %} N° {{ data.invoice_num }}{% endif %}</h2>
-        <hr>
+        <div class="pdf-title-underline"></div>
     </div>
 
-    <div class="preview-date">
-        <label>Date de facture:</label> {{ data.date }}
-    </div>
+    {# ── Date ── #}
+    <div class="pdf-date">Date de facture: {{ data.date }}</div>
 
-    <div class="preview-table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:44%;">Description</th>
-                    <th style="width:16%;">Quantité</th>
-                    <th style="width:20%;">Prix DH</th>
-                    <th style="width:20%;">Montant DH</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in data.get('items', []) %}
-                <tr>
-                    <td>{{ item.description }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ "{:,.2f}".format(item.unit_price)|replace(",", " ") }}</td>
-                    <td>{{ "{:,.2f}".format(item.total)|replace(",", " ") }}</td>
-                </tr>
-                {% endfor %}
-    {% set total = data.get('total', 0) %}
-    {% set remise = data.get('remise', 0) %}
-    {% set payer = data.get('payer', 0) %}
-    {% set net_total = data.get('net_total', data.total) %}
-    {% if remise > 0 or payer > 0 %}
+    {# ── Items table ── #}
+    {% set total    = data.get('total', 0) %}
+    {% set remise   = data.get('remise', 0) %}
+    {% set payer    = data.get('payer', 0) %}
+    {% set net_total = data.get('net_total', total) %}
+
+    <table class="pdf-table">
+        <thead>
             <tr>
-                <td></td>
-                <td></td>
-                <td style="font-weight:bold; text-align:center;">Total en DH</td>
-                <td style="text-align:center;">{{ "{:,.2f}".format(total)|replace(",", " ") }}</td>
+                <th class="col-desc">Description</th>
+                <th class="col-qty">Quantité</th>
+                <th class="col-price">Prix DH</th>
+                <th class="col-amount">Montant DH</th>
             </tr>
-    {% endif %}
-    {% if remise > 0 %}
+        </thead>
+        <tbody>
+            {% for item in data.get('items', []) %}
             <tr>
-                <td></td>
-                <td></td>
-                <td style="font-weight:bold; text-align:center;">Remise en DH</td>
-                <td style="text-align:center;">-{{ "{:,.2f}".format(remise)|replace(",", " ") }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ "{:,.2f}".format(item.unit_price)|replace(",", " ") }} DH</td>
+                <td>{{ "{:,.2f}".format(item.total)|replace(",", " ") }} DH</td>
             </tr>
-    {% endif %}
-    {% if payer > 0 %}
-            <tr>
-                <td></td>
-                <td></td>
-                <td style="font-weight:bold; text-align:center;">Payer en DH</td>
-                <td style="text-align:center;">-{{ "{:,.2f}".format(payer)|replace(",", " ") }}</td>
-            </tr>
-    {% endif %}
-            <tr>
-                <td></td>
-                <td></td>
-                <td style="font-weight:bold; text-align:center;">Total à Payer en DH</td>
-                <td style="text-align:center; font-weight:bold; font-size:16px; color:#C9A84C;">{{ "{:,.2f}".format(net_total)|replace(",", " ") }}</td>
-            </tr>
+            {% endfor %}
         </tbody>
     </table>
-</div>
 
-    <div class="preview-footer">
+    {# ── Totals section (outside table, right-aligned to last 2 cols) ── #}
+    <div class="pdf-totals">
+        <table class="pdf-totals-grid">
+            {% if remise > 0 or payer > 0 %}
+            <tr class="pdf-totals-row">
+                <td class="pdf-totals-label">Total en DH</td>
+                <td class="pdf-totals-value">{{ "{:,.2f}".format(total)|replace(",", " ") }} DH</td>
+            </tr>
+            {% endif %}
+            {% if remise > 0 %}
+            <tr class="pdf-totals-row">
+                <td class="pdf-totals-label">Remise en DH</td>
+                <td class="pdf-totals-value">-{{ "{:,.2f}".format(remise)|replace(",", " ") }} DH</td>
+            </tr>
+            {% endif %}
+            {% if payer > 0 %}
+            <tr class="pdf-totals-row">
+                <td class="pdf-totals-label">Payer en DH</td>
+                <td class="pdf-totals-value">-{{ "{:,.2f}".format(payer)|replace(",", " ") }} DH</td>
+            </tr>
+            {% endif %}
+            <tr class="pdf-totals-row totals-final">
+                <td class="pdf-totals-label">Total a Payer en DH</td>
+                <td class="pdf-totals-value">{{ "{:,.2f}".format(net_total)|replace(",", " ") }} DH</td>
+            </tr>
+        </table>
+    </div>
+
+    {# ── Footer ── #}
+    <div class="pdf-footer">
         <span>Rue Tange Center Al hirafiyin N 25<br>Imzouren AL Hoceima</span>
         <span>Tél: +212 6 71 68 75 98</span>
         <span>Instagram: cocinaespanola</span>
