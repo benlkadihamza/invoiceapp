@@ -70,13 +70,35 @@ body {
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+.stat-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
 }
 
 .stat-card .card-body {
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.stat-card h5 {
+    font-size: 1.05rem;
+    letter-spacing: -0.2px;
+    word-break: break-word;
+}
+
+.stat-card p {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
 }
 
 /*==============================================================================
@@ -888,6 +910,14 @@ body {
    ==========================================================================*/
 [data-bs-theme="dark"] .card {
     background-color: #2b2f33;
+}
+
+[data-bs-theme="dark"] .stat-card {
+    background-color: #262a2e !important;
+}
+
+[data-bs-theme="dark"] .stat-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
 }
 
 [data-bs-theme="dark"] .table {
