@@ -27,23 +27,42 @@
                         <th>ID</th>
                         <th class="d-none d-md-table-cell">N° Facture</th>
                         <th>Client</th>
-                        <th>Date</th>
-                        <th>Total</th>
-                        <th class="d-none d-md-table-cell">Créé le</th>
+                        <th>Total Facture</th>
+                        <th>Statut Paiement</th>
+                        <th class="d-none d-md-table-cell">Reste</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for invoice in invoices %}
                         <tr id="invoice-row-{{ invoice.id }}">
-                            <td><strong>#{{ invoice.id }}</strong></td>
+                            <td data-order="{{ invoice.id }}"><strong>#{{ invoice.id }}</strong></td>
                             <td class="d-none d-md-table-cell">{{ invoice.invoice_num }}</td>
-                            <td>{{ invoice.client_name }}</td>
-                            <td>{{ invoice.date }}</td>
-                            <td><span class="badge bg-success fs-6">{{ "{:,.2f}".format(invoice.net_total).replace(',', ' ') }} DH</span></td>
-                            <td class="d-none d-md-table-cell"><small class="text-muted">{{ invoice.created_at }}</small></td>
+                            <td>
+                                <div><strong>{{ invoice.client_name }}</strong></div>
+                                <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>{{ invoice.date }}</small>
+                            </td>
+                            <td><span class="fw-bold">{{ "{:,.2f}".format(invoice.net_total).replace(',', ' ') }} DH</span></td>
+                            <td>
+                                {% if invoice.payment_status == 'Paid' %}
+                                    <span class="badge bg-success text-white rounded-pill px-3 py-2 fw-bold" style="background-color: #198754 !important; color: #ffffff !important;">PAYÉ</span>
+                                {% elif invoice.payment_status == 'Partial' %}
+                                    <span class="badge bg-warning text-dark px-2 py-1">Partiel</span>
+                                    <div><small class="text-muted">Payé: {{ "{:,.2f}".format(invoice.total_paid).replace(',', ' ') }} DH</small></div>
+                                {% else %}
+                                    <span class="badge bg-secondary px-2 py-1">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <span class="fw-semibold {% if invoice.remaining_amount > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ "{:,.2f}".format(invoice.remaining_amount).replace(',', ' ') }} DH
+                                </span>
+                            </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('payments.payment_detail', payment_id=invoice.id) }}" class="btn btn-outline-info" title="Gestion des paiements">
+                                        <i class="bi bi-credit-card"></i>
+                                    </a>
                                     <a href="{{ url_for('invoices.create_invoice') }}?edit={{ invoice.id }}" class="btn btn-outline-warning" title="Modifier">
                                         <i class="bi bi-pencil"></i>
                                     </a>
