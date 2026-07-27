@@ -76,6 +76,26 @@ def save_invoice_data(data):
         invoice_id = invoice.id
 
     db.session.commit()
+
+    from models import InvoicePayment
+    pm = InvoicePayment.query.filter_by(invoice_id=invoice_id).first()
+    if not pm:
+        pm = InvoicePayment(
+            invoice_id=invoice_id,
+            customer_name=client_name,
+            invoice_number=invoice_num,
+            invoice_total=net_total,
+            remaining_amount=net_total,
+            status="Pending"
+        )
+        db.session.add(pm)
+    else:
+        pm.customer_name = client_name
+        pm.invoice_number = invoice_num
+        pm.invoice_total = net_total
+        pm.recalculate()
+
+    db.session.commit()
     return invoice_id
 
 
@@ -177,18 +197,33 @@ def create_invoice():
 @login_required
 def list_invoices():
     try:
+        from models import InvoicePayment
         rows = Invoice.query.order_by(Invoice.id.desc()).all()
-        invoices = [
-            {
+        invoices = []
+        for inv in rows:
+            pm = InvoicePayment.query.filter_by(invoice_id=inv.id).first()
+            if not pm:
+                pm = InvoicePayment(
+                    invoice_id=inv.id,
+                    customer_name=inv.client_name,
+                    invoice_number=inv.invoice_num,
+                    invoice_total=inv.net_total,
+                    remaining_amount=inv.net_total,
+                    status="Pending"
+                )
+                db.session.add(pm)
+                db.session.commit()
+            invoices.append({
                 "id": inv.id,
                 "invoice_num": inv.invoice_num,
                 "date": inv.date,
                 "client_name": inv.client_name,
                 "net_total": inv.net_total,
-                "created_at": inv.created_at
-            }
-            for inv in rows
-        ]
+                "created_at": inv.created_at,
+                "payment_status": pm.status,
+                "remaining_amount": pm.remaining_amount,
+                "total_paid": pm.total_paid
+            })
     except Exception:
         invoices = []
     return render_template('invoices.html', invoices=invoices)
@@ -199,10 +234,23 @@ def list_invoices():
 def save_invoice_route():
     data = request.get_json(silent=True) or {}
     try:
+        is_update = bool(data.get("id"))
         invoice_id = save_invoice_data(data)
         if invoice_id is None:
             return jsonify({"error": "Facture non trouvée"}), 404
-        return jsonify({"id": invoice_id})
+        
+        from flask import flash, url_for
+        client_str = f" ({data.get('client_name')})" if data.get('client_name') else ""
+        if is_update:
+            flash(f"La facture N° {data.get('invoice_num', '')}{client_str} a été mise à jour avec succès.", "success")
+        else:
+            flash(f"La facture N° {data.get('invoice_num', '')}{client_str} a été créée avec succès.", "success")
+
+        return jsonify({
+            "id": invoice_id,
+            "is_update": is_update,
+            "redirect": url_for('invoices.list_invoices')
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Erreur lors de l'enregistrement: {str(e)}"}), 500
@@ -221,8 +269,6 @@ def get_invoice_json(invoice_id):
 @login_required
 def generate_pdf():
     data = request.get_json(silent=True) or {}
-
-    print("[PDF] Received items:", [item.get('description', '') for item in data.get('items', [])])
 
     pdf = InvoicePDF()
     pdf._client_name = data.get("client_name", "")
@@ -253,11 +299,7 @@ def generate_pdf():
         if pdf.page_no() != last_page:
             draw_table_header()
             last_page = pdf.page_no()
-        desc = item.get("description", "")
-        print("DESC =", repr(desc))
-
-        pdf.set_fill_color(255, 255, 0)  # أصفر للتجربة
-        pdf.cell(col_w[0], 7, "TEST", border=1, fill=True)
+        pdf.cell(col_w[0], 7, item.get('description', ''), border=1)
         pdf.cell(col_w[1], 7, str(item.get('quantity', 0)), border=1, align="C")
         pdf.cell(col_w[2], 7, f"{item.get('unit_price', 0):,.2f}".replace(',', ' '), border=1, align="C")
         pdf.cell(col_w[3], 7, f"{item.get('total', 0):,.2f}".replace(',', ' '), border=1, align="C")
@@ -288,6 +330,25 @@ def generate_pdf():
     if payer > 0:
         price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
     price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
+
+    inv_id = data.get('id')
+    pm = None
+    if inv_id:
+        from models import InvoicePayment
+        pm = InvoicePayment.query.filter_by(invoice_id=inv_id).first()
+    if pm:
+        paid_amt = pm.total_paid
+        rem_amt = pm.remaining_amount
+        st_text = "PAYÉ" if pm.status == "Paid" else ("PARTIEL" if pm.status == "Partial" else "EN ATTENTE")
+    else:
+        paid_amt = 0.0
+        rem_amt = net_total
+        st_text = "EN ATTENTE"
+
+    pdf.ln(2)
+    price_line("Statut Paiement", st_text)
+    price_line("Montant Paye", f"{paid_amt:,.2f} DH".replace(',', ' '))
+    price_line("Reste a Payer", f"{rem_amt:,.2f} DH".replace(',', ' '))
 
     name = f"{safe_filename(data.get('client_name', ''))}.pdf"
     buf = BytesIO()
@@ -514,6 +575,22 @@ def download_saved_pdf(invoice_id):
     if payer > 0:
         price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
     price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
+
+    from models import InvoicePayment
+    pm = InvoicePayment.query.filter_by(invoice_id=invoice_id).first()
+    if pm:
+        paid_amt = pm.total_paid
+        rem_amt = pm.remaining_amount
+        st_text = "PAYÉ" if pm.status == "Paid" else ("PARTIEL" if pm.status == "Partial" else "EN ATTENTE")
+    else:
+        paid_amt = 0.0
+        rem_amt = net_total
+        st_text = "EN ATTENTE"
+
+    pdf.ln(2)
+    price_line("Statut Paiement", st_text)
+    price_line("Montant Paye", f"{paid_amt:,.2f} DH".replace(',', ' '))
+    price_line("Reste a Payer", f"{rem_amt:,.2f} DH".replace(',', ' '))
 
     name = f"{safe_filename(data.get('client_name', ''))}.pdf"
     buf = BytesIO()
