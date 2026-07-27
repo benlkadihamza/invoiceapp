@@ -73,7 +73,49 @@ def create_app(config_name=None):
         db.create_all()
         _seed_defaults()
 
+        print("=" * 60)
+        print("SQLALCHEMY_DATABASE_URI:", masked_uri)
+        print("Engine:", db.engine.url)
+        print("Host:", db.engine.url.host)
+        print("Database:", db.engine.url.database)
+        print("User:", db.engine.url.username)
+        print("=" * 60)
+
+        from sqlalchemy import text
+        try:
+            print("Current DB:", db.session.execute(text("SELECT current_database()")).scalar())
+            print("Current User:", db.session.execute(text("SELECT current_user")).scalar())
+            print("Version:", db.session.execute(text("SELECT version()")).scalar())
+        except Exception as e:
+            print("Diagnostic Query Error:", e)
+
+    @app.route("/debug/database-test")
+    def debug_database_test():
+        from models import Person
+        from sqlalchemy import text
+        import uuid
+        test_name = f"DEBUG_PERSON_{uuid.uuid4().hex[:6]}"
+        p = Person(name=test_name, phone="0000000000", email="debug@test.com")
+        db.session.add(p)
+        db.session.commit()
+
+        inserted_p = Person.query.filter_by(name=test_name).first()
+        current_db = db.session.execute(text("SELECT current_database()")).scalar()
+        current_u = db.session.execute(text("SELECT current_user")).scalar()
+
+        return {
+            "success": True,
+            "inserted_id": inserted_p.id if inserted_p else None,
+            "inserted_name": inserted_p.name if inserted_p else None,
+            "current_database": current_db,
+            "current_user": current_u,
+            "engine_url": _mask_url(str(db.engine.url)),
+            "host": db.engine.url.host,
+            "database": db.engine.url.database,
+        }
+
     return app
+
 
 
 def _seed_defaults():
