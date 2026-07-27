@@ -178,7 +178,7 @@ class FinanceReportPDF(FPDF):
         self.line(15, self.get_y(), 195, self.get_y())
         self.ln(5)
 
-    def _draw_summary_cards(self, total_income, total_expense, net, closing_balance=None):
+    def _draw_summary_cards(self, total_income, total_expense, net, closing_balance=None, hide_net=False, hide_balance=False):
         self.set_font('Helvetica', 'B', 9)
         y_start = self.get_y()
 
@@ -187,9 +187,10 @@ class FinanceReportPDF(FPDF):
         cards = [
             ('Total Revenus', _fmt(total_income) + ' DH', COLOR_SUCCESS),
             ('Total Depenses', _fmt(total_expense) + ' DH', COLOR_DANGER),
-            ('Net', _fmt(net) + ' DH', COLOR_PRIMARY if net >= 0 else COLOR_DANGER),
         ]
-        if closing_balance is not None:
+        if not hide_net:
+            cards.append(('Net', _fmt(net) + ' DH', COLOR_PRIMARY if net >= 0 else COLOR_DANGER))
+        if closing_balance is not None and not hide_balance:
             cards.append(('Solde Cloture', _fmt(closing_balance) + ' DH', COLOR_PRIMARY))
 
         total_w = len(cards) * card_w + (len(cards) - 1) * gap
@@ -234,7 +235,7 @@ class FinanceReportPDF(FPDF):
             return True
         return False
 
-    def _draw_transaction_row(self, t, col_widths, idx, running_balance=None):
+    def _draw_transaction_row(self, t, col_widths, idx, running_balance=None, hide_net=False):
         self._check_page_break(12)
         row_h = 7
         if t.notes:
@@ -249,28 +250,38 @@ class FinanceReportPDF(FPDF):
         self.set_font('Helvetica', '', 7)
         y_before = self.get_y()
 
-        values = [
-            t.formatted_date,
-            (t.person.name if t.person else '-')[:16],
-            t.description[:28],
-            _fmt(t.income) if t.income > 0 else '-',
-            _fmt(t.expense) if t.expense > 0 else '-',
-            (_fmt(t.net) if t.net >= 0 else _fmt(t.net)),
-            _fmt(running_balance) if running_balance is not None else '-',
-        ]
-
-        aligns = ['C', 'L', 'L', 'R', 'R', 'R', 'R']
+        if hide_net:
+            values = [
+                t.formatted_date,
+                (t.person.name if t.person else '-')[:16],
+                t.description[:28],
+                _fmt(t.income) if t.income > 0 else '-',
+                _fmt(t.expense) if t.expense > 0 else '-',
+                _fmt(running_balance) if running_balance is not None else '-',
+            ]
+            aligns = ['C', 'L', 'L', 'R', 'R', 'R']
+        else:
+            values = [
+                t.formatted_date,
+                (t.person.name if t.person else '-')[:16],
+                t.description[:28],
+                _fmt(t.income) if t.income > 0 else '-',
+                _fmt(t.expense) if t.expense > 0 else '-',
+                (_fmt(t.net) if t.net >= 0 else _fmt(t.net)),
+                _fmt(running_balance) if running_balance is not None else '-',
+            ]
+            aligns = ['C', 'L', 'L', 'R', 'R', 'R', 'R']
 
         for i, (val, w) in enumerate(zip(values, col_widths)):
             self.set_xy(15 + sum(col_widths[:i]), y_before)
             self.set_font('Helvetica', '', 7)
-            if i == 5:
+            if not hide_net and i == 5:
                 self.set_font('Helvetica', 'B', 7)
                 if t.net >= 0:
                     self.set_text_color(*COLOR_SUCCESS)
                 else:
                     self.set_text_color(*COLOR_DANGER)
-            elif i == 6 and running_balance is not None:
+            elif (not hide_net and i == 6 and running_balance is not None) or (hide_net and i == 5 and running_balance is not None):
                 self.set_font('Helvetica', 'B', 7)
                 if running_balance >= 0:
                     self.set_text_color(*COLOR_SUCCESS)
@@ -294,7 +305,7 @@ class FinanceReportPDF(FPDF):
         self.set_y(y_before + row_h)
         self.set_text_color(0, 0, 0)
 
-    def _draw_daily_totals(self, transactions, col_widths):
+    def _draw_daily_totals(self, transactions, col_widths, hide_net=False):
         self._check_page_break(20)
         daily = defaultdict(lambda: {'income': 0.0, 'expense': 0.0})
         for t in transactions:
@@ -306,10 +317,16 @@ class FinanceReportPDF(FPDF):
         self.set_text_color(*COLOR_DARK)
         self.cell(0, 6, _safe('Totaux Quotidiens'), new_x="LMARGIN", new_y="NEXT")
 
-        self._draw_table_header(
-            ['Date', 'Revenus (DH)', 'Depenses (DH)', 'Net (DH)'],
-            [45, 40, 40, 40]
-        )
+        if hide_net:
+            headers = ['Date', 'Revenus (DH)', 'Depenses (DH)']
+            widths = [65, 50, 50]
+            aligns = ['C', 'R', 'R']
+        else:
+            headers = ['Date', 'Revenus (DH)', 'Depenses (DH)', 'Net (DH)']
+            widths = [45, 40, 40, 40]
+            aligns = ['C', 'R', 'R', 'R']
+
+        self._draw_table_header(headers, widths)
 
         self.set_font('Helvetica', '', 7)
         total_i = 0.0
@@ -326,16 +343,14 @@ class FinanceReportPDF(FPDF):
             else:
                 self.set_fill_color(*COLOR_EXPENSE_BG)
 
-            vals = [
-                d.strftime('%d/%m/%Y'),
-                _fmt(data['income']),
-                _fmt(data['expense']),
-                _fmt(net),
-            ]
-            aligns = ['C', 'R', 'R', 'R']
-            for i, (v, w) in enumerate(zip(vals, [45, 40, 40, 40])):
-                self.set_font('Helvetica', 'B' if i == 3 else '', 7)
-                if i == 3:
+            if hide_net:
+                vals = [d.strftime('%d/%m/%Y'), _fmt(data['income']), _fmt(data['expense'])]
+            else:
+                vals = [d.strftime('%d/%m/%Y'), _fmt(data['income']), _fmt(data['expense']), _fmt(net)]
+
+            for i, (v, w) in enumerate(zip(vals, widths)):
+                self.set_font('Helvetica', 'B' if (not hide_net and i == 3) else '', 7)
+                if not hide_net and i == 3:
                     self.set_text_color(*COLOR_SUCCESS if net >= 0 else COLOR_DANGER)
                 else:
                     self.set_text_color(0, 0, 0)
@@ -345,15 +360,20 @@ class FinanceReportPDF(FPDF):
         self.set_fill_color(*COLOR_HEADER_BG)
         self.set_text_color(*COLOR_HEADER_FG)
         self.set_font('Helvetica', 'B', 7)
-        self.cell(45, 7, 'TOTAUX', border=0, fill=True, align='L')
-        self.cell(40, 7, _fmt(total_i), border=0, fill=True, align='R')
-        self.cell(40, 7, _fmt(total_e), border=0, fill=True, align='R')
-        self.set_text_color(*COLOR_WHITE)
-        self.cell(40, 7, _fmt(total_i - total_e), border=0, fill=True, align='R')
+        if hide_net:
+            self.cell(widths[0], 7, 'TOTAUX', border=0, fill=True, align='L')
+            self.cell(widths[1], 7, _fmt(total_i), border=0, fill=True, align='R')
+            self.cell(widths[2], 7, _fmt(total_e), border=0, fill=True, align='R')
+        else:
+            self.cell(widths[0], 7, 'TOTAUX', border=0, fill=True, align='L')
+            self.cell(widths[1], 7, _fmt(total_i), border=0, fill=True, align='R')
+            self.cell(widths[2], 7, _fmt(total_e), border=0, fill=True, align='R')
+            self.set_text_color(*COLOR_WHITE)
+            self.cell(widths[3], 7, _fmt(total_i - total_e), border=0, fill=True, align='R')
         self.ln(7)
         self.set_text_color(0, 0, 0)
 
-    def _draw_person_summary(self, transactions):
+    def _draw_person_summary(self, transactions, hide_net=False):
         persons = defaultdict(lambda: {'income': 0.0, 'expense': 0.0, 'count': 0})
         for t in transactions:
             pname = t.person.name if t.person else 'Inconnu'
@@ -370,10 +390,16 @@ class FinanceReportPDF(FPDF):
         self.set_text_color(*COLOR_DARK)
         self.cell(0, 6, _safe('Totaux par Personne'), new_x="LMARGIN", new_y="NEXT")
 
-        self._draw_table_header(
-            ['Personne', 'Transactions', 'Revenus (DH)', 'Depenses (DH)', 'Net (DH)'],
-            [40, 25, 35, 35, 35]
-        )
+        if hide_net:
+            headers = ['Personne', 'Transactions', 'Revenus (DH)', 'Depenses (DH)']
+            widths = [50, 30, 45, 45]
+            aligns = ['L', 'C', 'R', 'R']
+        else:
+            headers = ['Personne', 'Transactions', 'Revenus (DH)', 'Depenses (DH)', 'Net (DH)']
+            widths = [40, 25, 35, 35, 35]
+            aligns = ['L', 'C', 'R', 'R', 'R']
+
+        self._draw_table_header(headers, widths)
 
         self.set_font('Helvetica', '', 7)
         for name, data in sorted(persons.items()):
@@ -381,24 +407,21 @@ class FinanceReportPDF(FPDF):
             net = data['income'] - data['expense']
             self.set_fill_color(*COLOR_ROW_ALT if list(persons.keys()).index(name) % 2 == 0 else COLOR_WHITE)
 
-            vals = [
-                name[:22],
-                str(data['count']),
-                _fmt(data['income']),
-                _fmt(data['expense']),
-                _fmt(net),
-            ]
-            aligns = ['L', 'C', 'R', 'R', 'R']
-            for i, (v, w) in enumerate(zip(vals, [40, 25, 35, 35, 35])):
-                self.set_font('Helvetica', 'B' if i == 4 else '', 7)
-                if i == 4:
+            if hide_net:
+                vals = [name[:22], str(data['count']), _fmt(data['income']), _fmt(data['expense'])]
+            else:
+                vals = [name[:22], str(data['count']), _fmt(data['income']), _fmt(data['expense']), _fmt(net)]
+
+            for i, (v, w) in enumerate(zip(vals, widths)):
+                self.set_font('Helvetica', 'B' if (not hide_net and i == 4) else '', 7)
+                if not hide_net and i == 4:
                     self.set_text_color(*COLOR_SUCCESS if net >= 0 else COLOR_DANGER)
                 else:
                     self.set_text_color(0, 0, 0)
                 self.cell(w, 7, _safe(v), border=0, fill=True, align=aligns[i])
             self.ln(7)
 
-    def _draw_final_totals(self, total_income, total_expense, balance):
+    def _draw_final_totals(self, total_income, total_expense, balance, hide_net=False, hide_balance=False):
         self._check_page_break(25)
         self.ln(3)
         self.set_draw_color(*COLOR_PRIMARY)
@@ -415,9 +438,11 @@ class FinanceReportPDF(FPDF):
         items = [
             ('Total Revenus:', _fmt(total_income) + ' DH', COLOR_SUCCESS),
             ('Total Depenses:', _fmt(total_expense) + ' DH', COLOR_DANGER),
-            ('Benefice Net:', _fmt(total_income - total_expense) + ' DH', COLOR_SUCCESS if total_income - total_expense >= 0 else COLOR_DANGER),
-            ('Solde Final:', _fmt(balance) + ' DH', COLOR_PRIMARY),
         ]
+        if not hide_net:
+            items.append(('Benefice Net:', _fmt(total_income - total_expense) + ' DH', COLOR_SUCCESS if total_income - total_expense >= 0 else COLOR_DANGER))
+        if not hide_balance:
+            items.append(('Solde Final:', _fmt(balance) + ' DH', COLOR_PRIMARY))
 
         for i, (label, value, color) in enumerate(items):
             self.set_xy(15, y + i * 8)
@@ -432,7 +457,7 @@ class FinanceReportPDF(FPDF):
         self.set_text_color(0, 0, 0)
 
 
-def generate_monthly_pdf(year, month):
+def generate_monthly_pdf(year, month, hide_net=False, hide_balance=False):
     from models import Transaction
     from sqlalchemy import extract
 
@@ -456,36 +481,44 @@ def generate_monthly_pdf(year, month):
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf._draw_header_block()
-    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, closing_balance)
+    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, closing_balance, hide_net=hide_net, hide_balance=hide_balance)
 
     pdf.set_font('Helvetica', 'B', 9)
     pdf.set_text_color(*COLOR_DARK)
     pdf.cell(0, 6, _safe('Details des Transactions'), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
 
-    columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
-    col_widths = [20, 24, 38, 24, 24, 24, 22]
+    if hide_net:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Mode']
+        col_widths = [22, 28, 48, 28, 28, 22]
+    else:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
+        col_widths = [20, 24, 38, 24, 24, 24, 22]
 
     if transactions:
         pdf._draw_table_header(columns, col_widths)
         for idx, t in enumerate(transactions):
-            pdf._draw_transaction_row(t, col_widths, idx)
+            pdf._draw_transaction_row(t, col_widths, idx, hide_net=hide_net)
 
         pdf.ln(2)
-        pdf._draw_table_header(['', '', 'TOTAUX', _fmt(total_income), _fmt(total_expense), _fmt(total_income - total_expense), ''], col_widths)
+        if hide_net:
+            tot_row = ['', '', 'TOTAUX', _fmt(total_income), _fmt(total_expense), '']
+        else:
+            tot_row = ['', '', 'TOTAUX', _fmt(total_income), _fmt(total_expense), _fmt(total_income - total_expense), '']
+        pdf._draw_table_header(tot_row, col_widths)
     else:
         pdf.set_font('Helvetica', 'I', 9)
         pdf.set_text_color(150, 150, 150)
         pdf.cell(0, 10, _safe('Aucune transaction pour cette periode'), align='C', new_x="LMARGIN", new_y="NEXT")
 
-    pdf._draw_daily_totals(transactions, col_widths)
-    pdf._draw_person_summary(transactions)
-    pdf._draw_final_totals(total_income, total_expense, closing_balance)
+    pdf._draw_daily_totals(transactions, col_widths, hide_net=hide_net)
+    pdf._draw_person_summary(transactions, hide_net=hide_net)
+    pdf._draw_final_totals(total_income, total_expense, closing_balance, hide_net=hide_net, hide_balance=hide_balance)
 
     return pdf.output()
 
 
-def generate_daily_pdf(year, month, day):
+def generate_daily_pdf(year, month, day, hide_net=False, hide_balance=False):
     from models import Transaction
     from datetime import date as d
 
@@ -507,10 +540,14 @@ def generate_daily_pdf(year, month, day):
     pdf.cell(0, 6, _safe(f'Journal du {selected_date.strftime("%d/%m/%Y")}'), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
 
-    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense)
+    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
-    columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Solde']
-    col_widths = [20, 24, 38, 24, 24, 24, 22]
+    if hide_net:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Solde']
+        col_widths = [22, 28, 48, 28, 28, 22]
+    else:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Solde']
+        col_widths = [20, 24, 38, 24, 24, 24, 22]
 
     if transactions:
         running_balances = []
@@ -521,18 +558,18 @@ def generate_daily_pdf(year, month, day):
 
         pdf._draw_table_header(columns, col_widths)
         for idx, t in enumerate(transactions):
-            pdf._draw_transaction_row(t, col_widths, idx, running_balance=running_balances[idx])
+            pdf._draw_transaction_row(t, col_widths, idx, running_balance=running_balances[idx], hide_net=hide_net)
     else:
         pdf.set_font('Helvetica', 'I', 9)
         pdf.set_text_color(150, 150, 150)
         pdf.cell(0, 10, _safe('Aucune transaction ce jour'), align='C', new_x="LMARGIN", new_y="NEXT")
 
-    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense)
+    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
     return pdf.output()
 
 
-def generate_weekly_pdf(start_date, end_date):
+def generate_weekly_pdf(start_date, end_date, hide_net=False, hide_balance=False):
     from models import Transaction
 
     transactions = Transaction.query.filter(
@@ -553,28 +590,32 @@ def generate_weekly_pdf(start_date, end_date):
     pdf.cell(0, 6, _safe(f'Du {start_date.strftime("%d/%m/%Y")} au {end_date.strftime("%d/%m/%Y")}'), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
 
-    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense)
+    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
-    columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
-    col_widths = [20, 24, 38, 24, 24, 24, 22]
+    if hide_net:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Mode']
+        col_widths = [22, 28, 48, 28, 28, 22]
+    else:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
+        col_widths = [20, 24, 38, 24, 24, 24, 22]
 
     if transactions:
         pdf._draw_table_header(columns, col_widths)
         for idx, t in enumerate(transactions):
-            pdf._draw_transaction_row(t, col_widths, idx)
+            pdf._draw_transaction_row(t, col_widths, idx, hide_net=hide_net)
     else:
         pdf.set_font('Helvetica', 'I', 9)
         pdf.set_text_color(150, 150, 150)
         pdf.cell(0, 10, _safe('Aucune transaction cette semaine'), align='C', new_x="LMARGIN", new_y="NEXT")
 
-    pdf._draw_daily_totals(transactions, col_widths)
-    pdf._draw_person_summary(transactions)
-    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense)
+    pdf._draw_daily_totals(transactions, col_widths, hide_net=hide_net)
+    pdf._draw_person_summary(transactions, hide_net=hide_net)
+    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
     return pdf.output()
 
 
-def generate_yearly_pdf(year):
+def generate_yearly_pdf(year, hide_net=False, hide_balance=False):
     from models import Transaction
     from sqlalchemy import extract
 
@@ -590,15 +631,21 @@ def generate_yearly_pdf(year):
     pdf.add_page()
     pdf._draw_header_block()
 
-    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense)
+    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
     pdf.set_font('Helvetica', 'B', 9)
     pdf.set_text_color(*COLOR_DARK)
     pdf.cell(0, 6, _safe('Resume Mensuel'), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
 
-    self_check = ['Mois', 'Revenus (DH)', 'Depenses (DH)', 'Net (DH)']
-    pdf._draw_table_header(self_check, [45, 38, 38, 38])
+    if hide_net:
+        self_check = ['Mois', 'Revenus (DH)', 'Depenses (DH)']
+        self_widths = [65, 48, 48]
+    else:
+        self_check = ['Mois', 'Revenus (DH)', 'Depenses (DH)', 'Net (DH)']
+        self_widths = [45, 38, 38, 38]
+
+    pdf._draw_table_header(self_check, self_widths)
 
     for m in range(1, 13):
         pdf._check_page_break(8)
@@ -611,25 +658,32 @@ def generate_yearly_pdf(year):
         else:
             pdf.set_fill_color(*COLOR_EXPENSE_BG)
 
-        vals = [MONTHS_FR[m], _fmt(mi), _fmt(me), _fmt(net)]
-        aligns = ['L', 'R', 'R', 'R']
-        for i, (v, w) in enumerate(zip(vals, [45, 38, 38, 38])):
-            pdf.set_font('Helvetica', 'B' if i == 3 else '', 7)
-            if i == 3:
+        if hide_net:
+            vals = [MONTHS_FR[m], _fmt(mi), _fmt(me)]
+            aligns = ['L', 'R', 'R']
+        else:
+            vals = [MONTHS_FR[m], _fmt(mi), _fmt(me), _fmt(net)]
+            aligns = ['L', 'R', 'R', 'R']
+
+        for i, (v, w) in enumerate(zip(vals, self_widths)):
+            self_font = 'Helvetica'
+            self_style = 'B' if (not hide_net and i == 3) else ''
+            pdf.set_font(self_font, self_style, 7)
+            if not hide_net and i == 3:
                 pdf.set_text_color(*COLOR_SUCCESS if net >= 0 else COLOR_DANGER)
             else:
                 pdf.set_text_color(0, 0, 0)
             pdf.cell(w, 7, _safe(v), border=0, fill=True, align=aligns[i])
         pdf.ln(7)
 
-    pdf._draw_daily_totals(transactions, [45, 38, 38, 38])
-    pdf._draw_person_summary(transactions)
-    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense)
+    pdf._draw_daily_totals(transactions, self_widths, hide_net=hide_net)
+    pdf._draw_person_summary(transactions, hide_net=hide_net)
+    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
     return pdf.output()
 
 
-def generate_person_pdf(year, month):
+def generate_person_pdf(year, month, hide_net=False, hide_balance=False):
     from models import Transaction
     from sqlalchemy import extract
 
@@ -645,9 +699,9 @@ def generate_person_pdf(year, month):
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf._draw_header_block()
-    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense)
+    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
-    pdf._draw_person_summary(transactions)
+    pdf._draw_person_summary(transactions, hide_net=hide_net)
 
     pdf.set_font('Helvetica', 'B', 9)
     pdf.set_text_color(*COLOR_DARK)
@@ -655,20 +709,24 @@ def generate_person_pdf(year, month):
     pdf.cell(0, 6, _safe('Transactions Detaillees'), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
 
-    columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
-    col_widths = [20, 24, 38, 24, 24, 24, 22]
+    if hide_net:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Mode']
+        col_widths = [22, 28, 48, 28, 28, 22]
+    else:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
+        col_widths = [20, 24, 38, 24, 24, 24, 22]
 
     if transactions:
         pdf._draw_table_header(columns, col_widths)
         for idx, t in enumerate(transactions):
-            pdf._draw_transaction_row(t, col_widths, idx)
+            pdf._draw_transaction_row(t, col_widths, idx, hide_net=hide_net)
 
-    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense)
+    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
     return pdf.output()
 
 
-def generate_full_pdf():
+def generate_full_pdf(hide_net=False, hide_balance=False):
     from models import Transaction
 
     transactions = Transaction.query.order_by(
@@ -682,21 +740,25 @@ def generate_full_pdf():
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf._draw_header_block()
-    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense)
+    pdf._draw_summary_cards(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
-    columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
-    col_widths = [20, 24, 38, 24, 24, 24, 22]
+    if hide_net:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Mode']
+        col_widths = [22, 28, 48, 28, 28, 22]
+    else:
+        columns = ['Date', 'Personne', 'Description', 'Revenu', 'Depense', 'Net', 'Mode']
+        col_widths = [20, 24, 38, 24, 24, 24, 22]
 
     if transactions:
         pdf._draw_table_header(columns, col_widths)
         for idx, t in enumerate(transactions):
-            pdf._draw_transaction_row(t, col_widths, idx)
+            pdf._draw_transaction_row(t, col_widths, idx, hide_net=hide_net)
     else:
         pdf.set_font('Helvetica', 'I', 9)
         pdf.set_text_color(150, 150, 150)
         pdf.cell(0, 10, _safe('Aucune transaction'), align='C', new_x="LMARGIN", new_y="NEXT")
 
-    pdf._draw_person_summary(transactions)
-    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense)
+    pdf._draw_person_summary(transactions, hide_net=hide_net)
+    pdf._draw_final_totals(total_income, total_expense, total_income - total_expense, hide_net=hide_net, hide_balance=hide_balance)
 
     return pdf.output()
