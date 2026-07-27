@@ -138,6 +138,11 @@ def add():
 def edit(id):
     t = Transaction.query.get_or_404(id)
     form = TransactionForm(obj=t)
+    if request.method == 'GET':
+        if not form.income.data:
+            form.income.data = None
+        if not form.expense.data:
+            form.expense.data = None
     form.person_id.choices = [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
 
