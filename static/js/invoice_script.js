@@ -1,8 +1,3 @@
-// ==========================================================================
-// INVOICE GENERATOR JAVASCRIPT (invoice_script.js)
-// Refactored for ultra-responsive UI behavior without altering business logic
-// ==========================================================================
-
 const SUGGESTIONS = [
     "Cuisine",
     "Protection Bas De L'évier",
@@ -37,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Update dropdown positioning smoothly on scroll and window resize
 window.addEventListener('scroll', () => {
     if (acTarget && acDropdown && acDropdown.classList.contains('active')) {
         positionDropdown(acTarget);
@@ -275,19 +269,25 @@ function positionDropdown(input) {
     if (!input || !acDropdown) return;
     const rect = input.getBoundingClientRect();
     const isMobile = window.innerWidth < 768;
-    const dropdownHeight = acDropdown.offsetHeight || 180;
 
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-
-    let top = rect.bottom;
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight && !isMobile) {
-        top = rect.top - dropdownHeight;
+    if (isMobile) {
+        // Mobile: always position below the input, never close early.
+        // The virtual keyboard changes window.innerHeight, so the
+        // off-screen check below would wrongly close the dropdown.
+        acDropdown.style.top = rect.bottom + 'px';
+        acDropdown.style.left = rect.left + 'px';
+        acDropdown.style.width = rect.width + 'px';
+    } else {
+        // Desktop: close if the input has scrolled out of view.
+        if (rect.bottom < 0 || rect.top > window.innerHeight ||
+            rect.right < 0 || rect.left > window.innerWidth) {
+            closeAcDropdown();
+            return;
+        }
+        acDropdown.style.top = rect.bottom + 'px';
+        acDropdown.style.left = rect.left + 'px';
+        acDropdown.style.width = rect.width + 'px';
     }
-
-    acDropdown.style.top = Math.max(0, top) + 'px';
-    acDropdown.style.left = Math.max(8, rect.left) + 'px';
-    acDropdown.style.width = Math.min(rect.width, window.innerWidth - 16) + 'px';
 }
 
 function closeAcDropdown() {
@@ -468,6 +468,8 @@ document.getElementById('btn-pdf').addEventListener('click', async () => {
     const data = getFormData();
     if (!data.items.length) return alert('Ajoutez au moins un article.');
 
+    console.log('[PDF] FormData being sent:', JSON.parse(JSON.stringify(data)));
+
     const wasEditing = currentInvoiceId !== null;
 
     let savedId;
@@ -490,25 +492,33 @@ document.getElementById('btn-pdf').addEventListener('click', async () => {
         alert("Erreur lors de l'enregistrement de la facture. Le PDF n'a pas été généré.");
         return;
     }
-
+    
     try {
-        const pdfRes = await fetch(`/invoices/${savedId}/pdf`);
+        const pdfRes = await fetch('/invoices/generate_pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(data)
+        });
         const blob = await pdfRes.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = getFilenameFromHeaders(pdfRes) || `facture_${data.invoice_num}.pdf`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1000);
+
+        showSuccessBanner(wasEditing
+            ? `Facture mise à jour et PDF téléchargé. ID : ${savedId}`
+            : `Facture enregistrée et PDF téléchargé. ID : ${savedId}`);
     } catch (e) {
         alert('Erreur lors de la génération du PDF.');
-        return;
-    }
-
-    if (wasEditing) {
-        showSuccessBanner(`Facture mise à jour et PDF téléchargé. ID : ${savedId}`);
-    } else {
-        resetFormToNewInvoice();
     }
 });
 
