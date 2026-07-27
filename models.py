@@ -95,6 +95,66 @@ class Invoice(db.Model):
         db.String,
         default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
+    payment = db.relationship('InvoicePayment', backref='invoice', uselist=False, cascade="all, delete-orphan")
+
+
+class InvoicePayment(db.Model):
+    __tablename__ = "invoice_payments"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, unique=True)
+    customer_name = db.Column(db.String, nullable=False, default="")
+    invoice_number = db.Column(db.String, nullable=False, default="")
+    invoice_total = db.Column(db.Float, nullable=False, default=0.0)
+
+    payment1_amount = db.Column(db.Float, nullable=False, default=0.0)
+    payment1_date = db.Column(db.String, nullable=False, default="")
+    payment1_notes = db.Column(db.Text, nullable=True, default="")
+
+    payment2_amount = db.Column(db.Float, nullable=False, default=0.0)
+    payment2_date = db.Column(db.String, nullable=False, default="")
+    payment2_notes = db.Column(db.Text, nullable=True, default="")
+
+    payment3_amount = db.Column(db.Float, nullable=False, default=0.0)
+    payment3_date = db.Column(db.String, nullable=False, default="")
+    payment3_notes = db.Column(db.Text, nullable=True, default="")
+
+    payment4_amount = db.Column(db.Float, nullable=False, default=0.0)
+    payment4_date = db.Column(db.String, nullable=False, default="")
+    payment4_notes = db.Column(db.Text, nullable=True, default="")
+
+    remaining_amount = db.Column(db.Float, nullable=False, default=0.0)
+    status = db.Column(db.String(20), nullable=False, default="Pending")
+
+    created_at = db.Column(
+        db.String,
+        default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+    updated_at = db.Column(
+        db.String,
+        default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        onupdate=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+
+    @property
+    def total_paid(self):
+        return (self.payment1_amount or 0.0) + (self.payment2_amount or 0.0) + \
+               (self.payment3_amount or 0.0) + (self.payment4_amount or 0.0)
+
+    def recalculate(self):
+        paid = self.total_paid
+        tot = self.invoice_total or 0.0
+        rem = round(tot - paid, 2)
+        if rem <= 0:
+            self.remaining_amount = 0.0
+            self.status = "Paid"
+        elif paid == 0:
+            self.remaining_amount = round(tot, 2)
+            self.status = "Pending"
+        else:
+            self.remaining_amount = rem
+            self.status = "Partial"
+        self.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 
 class Product(db.Model):
