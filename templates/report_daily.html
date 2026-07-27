@@ -3,12 +3,27 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <h4 class="fw-bold mb-0"><i class="bi bi-calendar-day me-2"></i>Rapport quotidien</h4>
-    <div class="d-flex gap-2">
-        <form method="GET" class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="GET" class="d-flex gap-2 align-items-center">
             <input type="date" name="date" class="form-control form-control-sm" value="{{ selected_date.isoformat() }}">
             <button class="btn btn-primary btn-sm"><i class="bi bi-search"></i> Voir</button>
         </form>
-        <a href="{{ url_for('reports.daily_pdf', year=selected_date.year, month=selected_date.month, day=selected_date.day) }}" class="btn btn-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+
+        <div class="d-flex flex-wrap gap-1 align-items-center">
+            <input type="checkbox" class="btn-check" id="hideNetPdf" autocomplete="off" {% if hide_net %}checked{% endif %}>
+            <label class="btn btn-outline-success btn-sm" for="hideNetPdf" id="hideNetLabel" title="Bénéfice net dans le PDF">
+                <i class="bi bi-eye me-1" id="hideNetIcon"></i>Bénéfice net
+            </label>
+
+            <input type="checkbox" class="btn-check" id="hideBalancePdf" autocomplete="off" {% if hide_balance %}checked{% endif %}>
+            <label class="btn btn-outline-success btn-sm" for="hideBalancePdf" id="hideBalanceLabel" title="Solde final dans le PDF">
+                <i class="bi bi-eye me-1" id="hideBalanceIcon"></i>Solde final
+            </label>
+
+            <a id="pdfDownloadBtn" href="{{ url_for('reports.daily_pdf', year=selected_date.year, month=selected_date.month, day=selected_date.day) }}" class="btn btn-danger btn-sm">
+                <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+            </a>
+        </div>
     </div>
 </div>
 
@@ -77,4 +92,61 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const hideNetCheck = document.getElementById('hideNetPdf');
+    const hideNetLabel = document.getElementById('hideNetLabel');
+    const hideNetIcon = document.getElementById('hideNetIcon');
+
+    const hideBalanceCheck = document.getElementById('hideBalancePdf');
+    const hideBalanceLabel = document.getElementById('hideBalanceLabel');
+    const hideBalanceIcon = document.getElementById('hideBalanceIcon');
+
+    const pdfBtn = document.getElementById('pdfDownloadBtn');
+    const baseUrl = "{{ url_for('reports.daily_pdf', year=selected_date.year, month=selected_date.month, day=selected_date.day) }}";
+
+    function updateToggleState(checkbox, label, icon) {
+        if (checkbox.checked) {
+            label.className = 'btn btn-outline-danger btn-sm';
+            icon.className = 'bi bi-eye-slash me-1';
+        } else {
+            label.className = 'btn btn-outline-success btn-sm';
+            icon.className = 'bi bi-eye me-1';
+        }
+    }
+
+    function updatePdfUrl() {
+        const params = new URLSearchParams();
+
+        if (hideNetCheck) {
+            updateToggleState(hideNetCheck, hideNetLabel, hideNetIcon);
+            if (hideNetCheck.checked) {
+                params.append('hide_net', '1');
+            }
+        }
+
+        if (hideBalanceCheck) {
+            updateToggleState(hideBalanceCheck, hideBalanceLabel, hideBalanceIcon);
+            if (hideBalanceCheck.checked) {
+                params.append('hide_balance', '1');
+            }
+        }
+
+        const queryString = params.toString();
+        pdfBtn.href = queryString ? baseUrl + '?' + queryString : baseUrl;
+    }
+
+    if (hideNetCheck) {
+        hideNetCheck.addEventListener('change', updatePdfUrl);
+    }
+    if (hideBalanceCheck) {
+        hideBalanceCheck.addEventListener('change', updatePdfUrl);
+    }
+
+    updatePdfUrl();
+});
+</script>
 {% endblock %}
