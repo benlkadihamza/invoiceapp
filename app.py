@@ -42,6 +42,17 @@ def create_app(config_name=None):
     if os.environ.get('DATABASE_URL') and engine_name == 'sqlite':
         print("WARNING: DATABASE_URL is set in environment, but SQLite was selected!")
 
+    if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) and engine_name == 'sqlite':
+        print("!" * 60)
+        print("CRITICAL ALERT: DEPLOYED ON RENDER BUT DATABASE_URL IS MISSING!")
+        print("Your service is running on local SQLite (ephemeral disk).")
+        print("Data WILL BE ERASED every time Render restarts or reloads!")
+        print("Fix: Go to Render Dashboard -> Environment Variables")
+        print("Add Key: DATABASE_URL")
+        print("Add Value: postgresql://neondb_owner:npg_uNal2eUQkC4m@ep-winter-cloud-atpsnveg-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+        print("!" * 60)
+
+
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
     os.makedirs(os.path.join(app.root_path, 'database'), exist_ok=True)
