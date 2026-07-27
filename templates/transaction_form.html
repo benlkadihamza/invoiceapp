@@ -27,13 +27,23 @@
                             <label class="form-label fw-semibold">{{ form.description.label.text }}</label>
                             {{ form.description(class="form-control", placeholder="Ex: Achat supermarché") }}
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">{{ form.income.label.text }}</label>
-                            {{ form.income(class="form-control", step="0.01", min="0", placeholder="0.00") }}
+                        <div class="col-12 col-sm-6">
+                            <label for="income" class="form-label fw-semibold text-success">
+                                <i class="bi bi-arrow-down-left-circle me-1"></i>Revenu (DH)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-success-subtle text-success border-success">+</span>
+                                {{ form.income(class="form-control", id="income", min="0", step="0.01", type="number", placeholder="0") }}
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">{{ form.expense.label.text }}</label>
-                            {{ form.expense(class="form-control", step="0.01", min="0", placeholder="0.00") }}
+                        <div class="col-12 col-sm-6">
+                            <label for="expense" class="form-label fw-semibold text-danger">
+                                <i class="bi bi-arrow-up-right-circle me-1"></i>Dépense (DH)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-danger-subtle text-danger border-danger">-</span>
+                                {{ form.expense(class="form-control", id="expense", min="0", step="0.01", type="number", placeholder="0") }}
+                            </div>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">{{ form.notes.label.text }}</label>
