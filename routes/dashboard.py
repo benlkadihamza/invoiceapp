@@ -82,6 +82,17 @@ def index():
     recent_transactions = Transaction.query.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(10).all()
     transactions_with_balance = _compute_running_balance(recent_transactions)
 
+    from models import InvoicePayment
+    from routes.payments import sync_invoice_payments
+    sync_invoice_payments()
+
+    payments_pending = InvoicePayment.query.filter_by(status='Pending').count()
+    payments_partial = InvoicePayment.query.filter_by(status='Partial').count()
+    payments_paid = InvoicePayment.query.filter_by(status='Paid').count()
+    all_pm = InvoicePayment.query.all()
+    total_remaining_amount = sum(p.remaining_amount for p in all_pm)
+    total_collected_amount = sum(p.total_paid for p in all_pm)
+
     return render_template('dashboard.html',
                            current_balance=current_balance,
                            total_income=total_income, total_expense=total_expense,
@@ -93,7 +104,12 @@ def index():
                            monthly_expense_data=monthly_expense_data,
                            daily_dates=daily_dates, daily_balance=daily_balance,
                            prev_year_income=prev_year_income, prev_year_expense=prev_year_expense,
-                           recent_transactions=transactions_with_balance)
+                           recent_transactions=transactions_with_balance,
+                           payments_pending=payments_pending,
+                           payments_partial=payments_partial,
+                           payments_paid=payments_paid,
+                           total_remaining_amount=total_remaining_amount,
+                           total_collected_amount=total_collected_amount)
 
 
 def _compute_running_balance(transactions):
