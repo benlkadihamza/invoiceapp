@@ -75,9 +75,9 @@
         <div class="card border-0 shadow-sm h-100 stat-card border-start border-warning border-4">
             <div class="card-body">
                 <p class="text-muted small mb-1">Aujourd'hui</p>
-                <div class="small">
-                    <span class="text-success"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(today_income) }}</span>
-                    <span class="text-danger ms-2"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(today_expense) }}</span>
+                <div class="small fw-semibold mt-1">
+                    <span class="text-success me-1"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(today_income) }}</span>
+                    <span class="text-danger ms-1"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(today_expense) }}</span>
                 </div>
             </div>
         </div>
@@ -86,9 +86,70 @@
         <div class="card border-0 shadow-sm h-100 stat-card border-start border-secondary border-4">
             <div class="card-body">
                 <p class="text-muted small mb-1">Cette année</p>
-                <div class="small">
-                    <span class="text-success"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(year_income) }}</span>
-                    <span class="text-danger ms-2"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(year_expense) }}</span>
+                <div class="small fw-semibold mt-1">
+                    <span class="text-success me-1"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(year_income) }}</span>
+                    <span class="text-danger ms-1"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(year_expense) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 mt-2">
+    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="bi bi-credit-card-2-back me-2 text-primary"></i>Gestion des Paiements</h6>
+    <a href="{{ url_for('payments.list_payments') }}" class="btn btn-sm btn-link text-decoration-none">Voir détails <i class="bi bi-arrow-right"></i></a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-secondary border-4">
+            <div class="card-body">
+                <p class="text-muted small mb-1">En attente</p>
+                <h5 class="fw-bold mb-0 text-secondary">{{ payments_pending }}</h5>
+                <small class="text-muted">factures</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-warning border-4">
+            <div class="card-body">
+                <p class="text-muted small mb-1">Partielles</p>
+                <h5 class="fw-bold mb-0 text-warning">{{ payments_partial }}</h5>
+                <small class="text-muted">factures</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-success border-4">
+            <div class="card-body">
+                <p class="text-muted small mb-1">Payées</p>
+                <h5 class="fw-bold mb-0 text-success">{{ payments_paid }}</h5>
+                <small class="text-muted">factures</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-danger border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Montant Restant Total</p>
+                        <h5 class="fw-bold mb-0 text-danger">{{ "{:,.2f}".format(total_remaining_amount) }} DH</h5>
+                    </div>
+                    <span class="badge bg-danger bg-opacity-10 p-2"><i class="bi bi-hourglass-split fs-5 text-danger"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 stat-card border-start border-success border-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Montant Encaissé Total</p>
+                        <h5 class="fw-bold mb-0 text-success">{{ "{:,.2f}".format(total_collected_amount) }} DH</h5>
+                    </div>
+                    <span class="badge bg-success bg-opacity-10 p-2"><i class="bi bi-cash-stack fs-5 text-success"></i></span>
                 </div>
             </div>
         </div>
