@@ -17,6 +17,9 @@ def index():
 @reports_bp.route('/reports/daily')
 @login_required
 def daily():
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
+
     selected_date = request.args.get('date')
     if selected_date:
         try:
@@ -39,7 +42,9 @@ def daily():
                            selected_date=selected_date,
                            total_income=total_income,
                            total_expense=total_expense,
-                           net_balance=net_balance)
+                           net_balance=net_balance,
+                           hide_net=hide_net,
+                           hide_balance=hide_balance)
 
 
 @reports_bp.route('/reports/monthly')
@@ -47,6 +52,8 @@ def daily():
 def monthly():
     month = request.args.get('month', date.today().month, type=int)
     year = request.args.get('year', date.today().year, type=int)
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
 
     transactions = Transaction.query.filter(
         extract('month', Transaction.date) == month,
@@ -82,7 +89,8 @@ def monthly():
                            selected_month=month, selected_year=year,
                            total_income=total_income, total_expense=total_expense,
                            net_profit=net_profit, closing_balance=closing_balance,
-                           person_totals=person_totals, months_list=months_list)
+                           person_totals=person_totals, months_list=months_list,
+                           hide_net=hide_net, hide_balance=hide_balance)
 
 
 @reports_bp.route('/reports/person')
@@ -90,6 +98,8 @@ def monthly():
 def person():
     month = request.args.get('month', date.today().month, type=int)
     year = request.args.get('year', date.today().year, type=int)
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
 
     persons = Person.query.all()
     person_data = []
@@ -116,12 +126,16 @@ def person():
     return render_template('report_person.html',
                            person_data=person_data,
                            selected_month=month, selected_year=year,
-                           months_list=months_list)
+                           months_list=months_list,
+                           hide_net=hide_net, hide_balance=hide_balance)
 
 
 @reports_bp.route('/reports/weekly')
 @login_required
 def weekly():
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
+
     today = date.today()
     start = today - timedelta(days=today.weekday())
     end = start + timedelta(days=6)
@@ -138,13 +152,17 @@ def weekly():
                            transactions=transactions,
                            start_date=start, end_date=end,
                            total_income=total_income,
-                           total_expense=total_expense)
+                           total_expense=total_expense,
+                           hide_net=hide_net,
+                           hide_balance=hide_balance)
 
 
 @reports_bp.route('/reports/yearly')
 @login_required
 def yearly():
     year = request.args.get('year', date.today().year, type=int)
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
 
     transactions = Transaction.query.filter(
         extract('year', Transaction.date) == year
@@ -170,14 +188,18 @@ def yearly():
                            selected_year=year,
                            total_income=total_income,
                            total_expense=total_expense,
-                           monthly_data=monthly_data)
+                           monthly_data=monthly_data,
+                           hide_net=hide_net,
+                           hide_balance=hide_balance)
 
 
 @reports_bp.route('/reports/monthly/<int:year>/<int:month>/pdf')
 @login_required
 def monthly_pdf(year, month):
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
     from pdf_generator import generate_monthly_pdf, MONTHS_FR
-    pdf_bytes = generate_monthly_pdf(year, month)
+    pdf_bytes = generate_monthly_pdf(year, month, hide_net=hide_net, hide_balance=hide_balance)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     month_name = MONTHS_FR[month]
@@ -188,8 +210,10 @@ def monthly_pdf(year, month):
 @reports_bp.route('/reports/daily/<int:year>/<int:month>/<int:day>/pdf')
 @login_required
 def daily_pdf(year, month, day):
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
     from pdf_generator import generate_daily_pdf
-    pdf_bytes = generate_daily_pdf(year, month, day)
+    pdf_bytes = generate_daily_pdf(year, month, day, hide_net=hide_net, hide_balance=hide_balance)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     filename = f'Rapport_Quotidien_{year}_{month:02d}_{day:02d}.pdf'
@@ -199,10 +223,12 @@ def daily_pdf(year, month, day):
 @reports_bp.route('/reports/weekly/<start>/<end>/pdf')
 @login_required
 def weekly_pdf(start, end):
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
     from pdf_generator import generate_weekly_pdf
     start_date = date.fromisoformat(start)
     end_date = date.fromisoformat(end)
-    pdf_bytes = generate_weekly_pdf(start_date, end_date)
+    pdf_bytes = generate_weekly_pdf(start_date, end_date, hide_net=hide_net, hide_balance=hide_balance)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     filename = f'Rapport_Hebdomadaire_{start}_{end}.pdf'
@@ -212,8 +238,10 @@ def weekly_pdf(start, end):
 @reports_bp.route('/reports/yearly/<int:year>/pdf')
 @login_required
 def yearly_pdf(year):
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
     from pdf_generator import generate_yearly_pdf
-    pdf_bytes = generate_yearly_pdf(year)
+    pdf_bytes = generate_yearly_pdf(year, hide_net=hide_net, hide_balance=hide_balance)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     filename = f'Rapport_Annuel_{year}.pdf'
@@ -223,8 +251,10 @@ def yearly_pdf(year):
 @reports_bp.route('/reports/person/<int:year>/<int:month>/pdf')
 @login_required
 def person_pdf(year, month):
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
     from pdf_generator import generate_person_pdf, MONTHS_FR
-    pdf_bytes = generate_person_pdf(year, month)
+    pdf_bytes = generate_person_pdf(year, month, hide_net=hide_net, hide_balance=hide_balance)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     month_name = MONTHS_FR[month]
@@ -235,8 +265,10 @@ def person_pdf(year, month):
 @reports_bp.route('/export/pdf')
 @login_required
 def full_pdf():
+    hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
+    hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
     from pdf_generator import generate_full_pdf
-    pdf_bytes = generate_full_pdf()
+    pdf_bytes = generate_full_pdf(hide_net=hide_net, hide_balance=hide_balance)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     from datetime import datetime
