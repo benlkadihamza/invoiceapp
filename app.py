@@ -81,8 +81,13 @@ def create_app(config_name=None):
     register_blueprints(app)
 
     with app.app_context():
-        db.create_all()
-        _seed_defaults()
+        try:
+            db.create_all()
+            _seed_defaults()
+        except Exception as e:
+            print("=" * 60)
+            print("DATABASE INITIALIZATION / SEEDING WARNING:", e)
+            print("=" * 60)
 
         print("=" * 60)
         print("SQLALCHEMY_DATABASE_URI:", masked_uri)
