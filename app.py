@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
@@ -7,12 +8,39 @@ from config import config
 from routes import register_blueprints
 
 
+def _mask_url(url_str):
+    if not url_str:
+        return ""
+    return re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', url_str)
+
+
 def create_app(config_name=None):
     if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'default')
+        if os.environ.get('FLASK_CONFIG'):
+            config_name = os.environ.get('FLASK_CONFIG')
+        elif os.environ.get('FLASK_ENV'):
+            config_name = os.environ.get('FLASK_ENV')
+        elif os.environ.get('DATABASE_URL'):
+            config_name = 'production'
+        else:
+            config_name = 'default'
 
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
+    selected_config_cls = config.get(config_name, config['default'])
+    app.config.from_object(selected_config_cls)
+
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    masked_uri = _mask_url(uri)
+    engine_name = 'postgresql' if uri.startswith('postgresql') else ('sqlite' if uri.startswith('sqlite') else 'unknown')
+
+    print("==================================================")
+    print(f"ACTIVE CONFIG:\n{selected_config_cls.__name__}")
+    print(f"DATABASE URL:\n{masked_uri}")
+    print(f"DATABASE ENGINE:\n{engine_name}")
+    print("==================================================")
+
+    if os.environ.get('DATABASE_URL') and engine_name == 'sqlite':
+        print("WARNING: DATABASE_URL is set in environment, but SQLite was selected!")
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
@@ -43,83 +71,9 @@ def create_app(config_name=None):
 
     with app.app_context():
         db.create_all()
-        _clean_database()
         _seed_defaults()
 
     return app
-
-
-def _clean_database():
-    from models import Transaction
-    import sqlalchemy as sa
-
-    inspector = sa.inspect(db.engine)
-    table_names = inspector.get_table_names()
-
-    if 'categories' in table_names:
-        db.session.execute(sa.text('DROP TABLE categories'))
-        db.session.commit()
-
-    if 'transactions' in table_names:
-        columns = [col['name'] for col in inspector.get_columns('transactions')]
-        if 'transaction_type' in columns:
-            db.session.execute(sa.text(
-                "CREATE TABLE IF NOT EXISTS transactions_backup AS "
-                "SELECT id, date, description, income, expense, notes, receipt_image, "
-                "person_id, payment_method_id, created_at FROM transactions"
-            ))
-            db.session.execute(sa.text('DROP TABLE transactions'))
-            db.session.execute(sa.text(
-                "CREATE TABLE transactions ("
-                "id INTEGER PRIMARY KEY, "
-                "date DATE NOT NULL, "
-                "description VARCHAR(200) NOT NULL, "
-                "income FLOAT DEFAULT 0.0, "
-                "expense FLOAT DEFAULT 0.0, "
-                "notes TEXT, "
-                "receipt_image VARCHAR(256), "
-                "person_id INTEGER NOT NULL REFERENCES persons(id), "
-                "payment_method_id INTEGER REFERENCES payment_methods(id), "
-                "created_at DATETIME)"
-            ))
-            db.session.execute(sa.text(
-                "INSERT INTO transactions (id, date, description, income, expense, notes, "
-                "receipt_image, person_id, payment_method_id, created_at) "
-                "SELECT id, date, description, income, expense, notes, "
-                "receipt_image, person_id, payment_method_id, created_at "
-                "FROM transactions_backup"
-            ))
-            db.session.execute(sa.text('DROP TABLE transactions_backup'))
-            db.session.commit()
-        elif 'category_id' in columns:
-            db.session.execute(sa.text(
-                "CREATE TABLE IF NOT EXISTS transactions_backup AS "
-                "SELECT id, date, description, income, expense, notes, receipt_image, "
-                "person_id, payment_method_id, created_at FROM transactions"
-            ))
-            db.session.execute(sa.text('DROP TABLE transactions'))
-            db.session.execute(sa.text(
-                "CREATE TABLE transactions ("
-                "id INTEGER PRIMARY KEY, "
-                "date DATE NOT NULL, "
-                "description VARCHAR(200) NOT NULL, "
-                "income FLOAT DEFAULT 0.0, "
-                "expense FLOAT DEFAULT 0.0, "
-                "notes TEXT, "
-                "receipt_image VARCHAR(256), "
-                "person_id INTEGER NOT NULL REFERENCES persons(id), "
-                "payment_method_id INTEGER REFERENCES payment_methods(id), "
-                "created_at DATETIME)"
-            ))
-            db.session.execute(sa.text(
-                "INSERT INTO transactions (id, date, description, income, expense, notes, "
-                "receipt_image, person_id, payment_method_id, created_at) "
-                "SELECT id, date, description, income, expense, notes, "
-                "receipt_image, person_id, payment_method_id, created_at "
-                "FROM transactions_backup"
-            ))
-            db.session.execute(sa.text('DROP TABLE transactions_backup'))
-            db.session.commit()
 
 
 def _seed_defaults():
@@ -142,3 +96,4 @@ app = create_app()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
