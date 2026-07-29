@@ -61,6 +61,13 @@
                         {{ form.password(class="form-control", placeholder="Entrez votre mot de passe") }}
                     </div>
                 </div>
+                <!-- Remember Me & Submit -->
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" id="rememberMe" name="remember_me" type="checkbox" value="y">
+                        <label class="form-check-label small text-muted" for="rememberMe">Se souvenir de moi</label>
+                    </div>
+                </div>
                 {{ form.submit(class="btn btn-primary w-100 btn-lg") }}
             </form>
         </div>
