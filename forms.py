@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import (StringField, PasswordField, TextAreaField, FloatField,
-                     SelectField, DateField, SubmitField, HiddenField)
+                     SelectField, DateField, SubmitField, HiddenField, BooleanField)
 from wtforms.validators import DataRequired, Optional, Email, Length, EqualTo, ValidationError
 from models import User
 
@@ -9,6 +9,7 @@ from models import User
 class LoginForm(FlaskForm):
     username = StringField('Nom d\'utilisateur', validators=[DataRequired()])
     password = PasswordField('Mot de passe', validators=[DataRequired()])
+    remember_me = BooleanField('Se souvenir de moi')
     submit = SubmitField('Se connecter')
 
 
