@@ -326,7 +326,8 @@ function getFormData() {
         remise: remiseAmount,
         payer_enabled: payerEnabled,
         payer: payerAmount,
-        net_total: netTotal
+        net_total: netTotal,
+        request_token: document.getElementById('invoice_request_token')?.value || ''
     };
 
     // Include the DB id when editing so the backend does UPDATE, not INSERT.
@@ -612,18 +613,33 @@ function showSuccessBanner(message) {
     setTimeout(fadeOut, 4000);
 }
 
-document.getElementById('btn-save').addEventListener('click', async () => {
+let isInvoiceScriptSaving = false;
+document.getElementById('btn-save')?.addEventListener('click', async () => {
+    if (isInvoiceScriptSaving) return;
+
     const data = getFormData();
     if (!data.items.length) return alert('Ajoutez au moins un article.');
 
+    const saveBtn = document.getElementById('btn-save');
     const wasEditing = currentInvoiceId !== null;
+    let origHtml = '';
+
+    if (saveBtn) {
+        if (saveBtn.disabled) return;
+        saveBtn.disabled = true;
+        origHtml = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    }
+
+    isInvoiceScriptSaving = true;
 
     try {
         const res = await fetch('/invoices/save', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
+                'X-CSRFToken': getCsrfToken(),
+                'X-Request-Token': data.request_token || ''
             },
             body: JSON.stringify(data)
         });
@@ -637,9 +653,19 @@ document.getElementById('btn-save').addEventListener('click', async () => {
         } else {
             const msg = result && result.error ? result.error : "Erreur lors de l'enregistrement de la facture.";
             alert(msg);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = origHtml;
+            }
         }
     } catch (e) {
         alert("Erreur lors de l'enregistrement de la facture.");
         console.error(e);
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = origHtml;
+        }
+    } finally {
+        isInvoiceScriptSaving = false;
     }
 });
