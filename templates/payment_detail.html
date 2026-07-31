@@ -73,6 +73,7 @@
 <!-- 4 Installments Form -->
 <form id="payment-form" action="{{ url_for('payments.update_payment', payment_id=payment.id) }}" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="request_token" id="payment_request_token" value="{{ request_token() }}">
     
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold mb-0"><i class="bi bi-list-check me-2 text-primary"></i>Échéancier des Paiements (Max 4 Tranches)</h4>
@@ -314,9 +315,11 @@ document.addEventListener('DOMContentLoaded', function() {
         inp.addEventListener('change', calculateLive);
     });
 
+    let isPaymentSubmitting = false;
     // Handle Form Submit via Fetch AJAX
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        if (isPaymentSubmitting) return;
 
         if (!calculateLive()) {
             if (window.Swal) {
@@ -331,12 +334,25 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const btnSave = document.getElementById('btn-save-payments');
+        let origBtnHtml = '';
+        if (btnSave) {
+            if (btnSave.disabled) return;
+            btnSave.disabled = true;
+            origBtnHtml = btnSave.innerHTML;
+            btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        }
+
+        isPaymentSubmitting = true;
+
         // Enable all input elements so all form field values are collected
         document.querySelectorAll('.payment-amount, .payment-date, .payment-notes').forEach(el => {
             el.disabled = false;
         });
 
+        const reqToken = document.getElementById('payment_request_token')?.value || '';
         const payload = {
+            request_token: reqToken,
             payment1_amount: document.getElementById('p1_amount')?.value || 0,
             payment1_date: document.getElementById('p1_date')?.value || '',
             payment1_notes: document.getElementById('p1_notes')?.value || '',
@@ -362,6 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrfToken,
+                    'X-Request-Token': reqToken,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify(payload)
@@ -393,6 +410,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             } else {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerHTML = origBtnHtml;
+                }
                 if (window.Swal) {
                     Swal.fire({
                         icon: 'error',
@@ -405,17 +426,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (err) {
             console.error(err);
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerHTML = origBtnHtml;
+            }
             if (window.Swal) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Erreur',
-                    text: 'Une erreur réseau est survenue. Soumission normale en cours...'
-                }).then(() => {
-                    form.submit();
+                    text: 'Une erreur réseau est survenue.'
                 });
             } else {
-                form.submit();
+                alert('Une erreur réseau est survenue.');
             }
+        } finally {
+            isPaymentSubmitting = false;
         }
     });
 });
