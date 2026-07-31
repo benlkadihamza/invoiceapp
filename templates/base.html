@@ -149,6 +149,14 @@
                         <i class="bi bi-filetype-csv me-2"></i>CSV
                     </a>
                 </li>
+                <li class="nav-item mt-2 px-3">
+                    <small class="text-muted text-uppercase fw-bold">Système</small>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}" href="{{ url_for('settings.index') }}">
+                        <i class="bi bi-gear me-2"></i>Paramètres
+                    </a>
+                </li>
             </ul>
             <div class="mt-auto p-3 border-top">
                 <div class="d-flex align-items-center justify-content-between">
@@ -157,6 +165,9 @@
                         <button class="btn btn-sm btn-outline-secondary me-1" id="themeToggle" title="Changer le thème">
                             <i class="bi bi-moon-stars"></i>
                         </button>
+                        <a href="{{ url_for('settings.index') }}" class="btn btn-sm btn-outline-secondary me-1" title="Paramètres">
+                            <i class="bi bi-gear"></i>
+                        </a>
                         <a href="{{ url_for('auth.change_password') }}" class="btn btn-sm btn-outline-secondary me-1" title="Changer le mot de passe">
                             <i class="bi bi-key"></i>
                         </a>
@@ -214,6 +225,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <form id="deleteForm" method="POST" style="display:inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="request_token" value="{{ request_token() }}">
                         <button type="submit" class="btn btn-danger">Supprimer</button>
                     </form>
                 </div>
