@@ -46,3 +46,8 @@ class ReportFilterForm(FlaskForm):
     date_to = DateField('Au', validators=[Optional()], format='%Y-%m-%d')
     person_id = SelectField('Personne', coerce=int, validators=[Optional()], choices=[(0, 'Toutes')])
     submit = SubmitField('Filtrer')
+
+
+class RestoreDatabaseForm(FlaskForm):
+    database_file = FileField('Fichier de sauvegarde (.db)', validators=[DataRequired(), FileAllowed(['db'], 'Fichiers .db uniquement.')])
+    submit = SubmitField('Restaurer la base de données (.db)')
