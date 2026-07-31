@@ -135,6 +135,7 @@
             <div class="modal-body">
                 <div id="add-alert"></div>
                 <form id="add-product-form" enctype="multipart/form-data">
+                    <input type="hidden" name="request_token" id="add_product_request_token" value="{{ request_token() }}">
                     <div class="mb-3">
                         <label for="add-title" class="form-label">Nom du produit *</label>
                         <input type="text" class="form-control" id="add-title" name="title" required>
@@ -166,6 +167,7 @@
                 <div id="edit-alert"></div>
                 <form id="edit-product-form" enctype="multipart/form-data">
                     <input type="hidden" id="edit-product-id">
+                    <input type="hidden" name="request_token" id="edit_product_request_token" value="{{ request_token() }}">
                     <div class="mb-3">
                         <label for="edit-title" class="form-label">Nom du produit *</label>
                         <input type="text" class="form-control" id="edit-title" name="title" required>
@@ -247,18 +249,34 @@
         }
     });
 
+    let isSubmittingAdd = false;
     document.getElementById('add-product-form').addEventListener('submit', async function(e) {
         e.preventDefault();
+        if (isSubmittingAdd) return;
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        let origHtml = '';
+        if (submitBtn) {
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            origHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        }
+
+        isSubmittingAdd = true;
         const formData = new FormData(this);
         const title = formData.get('title').trim();
         if (!title) {
             showAlert('add-alert', 'Le nom du produit est requis.', true);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+            isSubmittingAdd = false;
             return;
         }
         try {
+            const reqToken = document.getElementById('add_product_request_token')?.value || '';
             const res = await fetch('/stock/add', {
                 method: 'POST',
-                headers: { 'X-CSRFToken': getCsrfToken() },
+                headers: { 'X-CSRFToken': getCsrfToken(), 'X-Request-Token': reqToken },
                 body: formData
             });
             const data = await res.json();
@@ -266,25 +284,45 @@
                 window.location.reload();
             } else {
                 showAlert('add-alert', data.error || 'Erreur lors de l\'ajout.', true);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
             }
         } catch (err) {
             showAlert('add-alert', 'Erreur de connexion.', true);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+        } finally {
+            isSubmittingAdd = false;
         }
     });
 
+    let isSubmittingEdit = false;
     document.getElementById('edit-product-form').addEventListener('submit', async function(e) {
         e.preventDefault();
+        if (isSubmittingEdit) return;
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        let origHtml = '';
+        if (submitBtn) {
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            origHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        }
+
+        isSubmittingEdit = true;
         const id = document.getElementById('edit-product-id').value;
         const formData = new FormData(this);
         const title = formData.get('title').trim();
         if (!title) {
             showAlert('edit-alert', 'Le nom du produit est requis.', true);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+            isSubmittingEdit = false;
             return;
         }
         try {
+            const reqToken = document.getElementById('edit_product_request_token')?.value || '';
             const res = await fetch('/stock/edit/' + id, {
                 method: 'POST',
-                headers: { 'X-CSRFToken': getCsrfToken() },
+                headers: { 'X-CSRFToken': getCsrfToken(), 'X-Request-Token': reqToken },
                 body: formData
             });
             const data = await res.json();
@@ -292,13 +330,19 @@
                 window.location.reload();
             } else {
                 showAlert('edit-alert', data.error || 'Erreur lors de la modification.', true);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
             }
         } catch (err) {
             showAlert('edit-alert', 'Erreur de connexion.', true);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+        } finally {
+            isSubmittingEdit = false;
         }
     });
 
+    const activeStockRequests = {};
     async function addStock(productId) {
+        if (activeStockRequests['add_' + productId]) return;
         if (!confirm("Voulez-vous ajouter cette quantité au stock ?")) return;
         const qtyEl = document.getElementById('qty-' + productId);
         const qty = parseInt(qtyEl.value, 10);
@@ -306,6 +350,7 @@
             alert('Quantité invalide.');
             return;
         }
+        activeStockRequests['add_' + productId] = true;
         try {
             const res = await fetch('/stock/add-stock/' + productId, {
                 method: 'POST',
@@ -323,10 +368,13 @@
             }
         } catch (err) {
             alert('Erreur de connexion.');
+        } finally {
+            delete activeStockRequests['add_' + productId];
         }
     }
 
     async function removeStock(productId) {
+        if (activeStockRequests['remove_' + productId]) return;
         if (!confirm("Voulez-vous retirer cette quantité du stock ?")) return;
         const qtyEl = document.getElementById('qty-' + productId);
         const qty = parseInt(qtyEl.value, 10);
@@ -334,6 +382,7 @@
             alert('Quantité invalide.');
             return;
         }
+        activeStockRequests['remove_' + productId] = true;
         try {
             const res = await fetch('/stock/remove-stock/' + productId, {
                 method: 'POST',
@@ -351,6 +400,8 @@
             }
         } catch (err) {
             alert('Erreur de connexion.');
+        } finally {
+            delete activeStockRequests['remove_' + productId];
         }
     }
 
