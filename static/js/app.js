@@ -212,29 +212,47 @@ function initUIUtilities() {
     });
 }
 
-function confirmDelete(target, message) {
+function confirmDelete(target, message, options = {}) {
     const modalEl = document.getElementById('deleteModal');
     if (!modalEl) return;
     
     const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
     const form = document.getElementById('deleteForm');
     const msgEl = document.getElementById('deleteModalMessage');
+    const titleEl = modalEl.querySelector('.modal-title');
+    const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
     
     if (msgEl) {
         msgEl.textContent = message || "Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.";
     }
+
+    if (titleEl) {
+        titleEl.textContent = options.title || "Confirmer la suppression";
+    }
+
+    if (submitBtn) {
+        submitBtn.textContent = options.btnText || "Supprimer";
+        submitBtn.className = `btn ${options.btnClass || 'btn-danger'}`;
+    }
     
-    form.onsubmit = null;
-    
-    if (typeof target === 'function') {
-        form.action = '#';
-        form.onsubmit = function(e) {
-            e.preventDefault();
-            modal.hide();
-            target();
-        };
-    } else {
-        form.action = target;
+    if (form) {
+        form.onsubmit = null;
+        if (typeof target === 'function') {
+            form.action = '#';
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                modal.hide();
+                target();
+            };
+        } else if (target) {
+            form.action = target;
+        } else {
+            form.action = '#';
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                modal.hide();
+            };
+        }
     }
     
     modal.show();
