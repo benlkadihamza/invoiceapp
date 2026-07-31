@@ -51,10 +51,13 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_globals():
         from models import Person, PaymentMethod
+        from idempotency import generate_request_token
         return {
             'all_persons': Person.query.order_by(Person.name).all(),
             'all_payment_methods': PaymentMethod.query.order_by(PaymentMethod.name).all(),
+            'request_token': generate_request_token,
         }
+
 
     register_blueprints(app)
 
