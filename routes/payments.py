@@ -72,8 +72,12 @@ def payment_detail(payment_id):
     return render_template('payment_detail.html', payment=pm, invoice=invoice)
 
 
+from idempotency import idempotent_route
+
+
 @payments_bp.route('/<int:payment_id>/update', methods=['POST'])
 @login_required
+@idempotent_route()
 def update_payment(payment_id):
     pm = db.session.get(InvoicePayment, payment_id)
     is_ajax = request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -115,24 +119,32 @@ def update_payment(payment_id):
         flash(msg, "danger")
         return redirect(url_for('payments.payment_detail', payment_id=pm.id))
 
-    pm.payment1_amount = p1
-    pm.payment1_date = data.get('payment1_date', '') or ''
-    pm.payment1_notes = data.get('payment1_notes', '') or ''
+    try:
+        pm.payment1_amount = p1
+        pm.payment1_date = data.get('payment1_date', '') or ''
+        pm.payment1_notes = data.get('payment1_notes', '') or ''
 
-    pm.payment2_amount = p2
-    pm.payment2_date = data.get('payment2_date', '') or ''
-    pm.payment2_notes = data.get('payment2_notes', '') or ''
+        pm.payment2_amount = p2
+        pm.payment2_date = data.get('payment2_date', '') or ''
+        pm.payment2_notes = data.get('payment2_notes', '') or ''
 
-    pm.payment3_amount = p3
-    pm.payment3_date = data.get('payment3_date', '') or ''
-    pm.payment3_notes = data.get('payment3_notes', '') or ''
+        pm.payment3_amount = p3
+        pm.payment3_date = data.get('payment3_date', '') or ''
+        pm.payment3_notes = data.get('payment3_notes', '') or ''
 
-    pm.payment4_amount = p4
-    pm.payment4_date = data.get('payment4_date', '') or ''
-    pm.payment4_notes = data.get('payment4_notes', '') or ''
+        pm.payment4_amount = p4
+        pm.payment4_date = data.get('payment4_date', '') or ''
+        pm.payment4_notes = data.get('payment4_notes', '') or ''
 
-    pm.recalculate()
-    db.session.commit()
+        pm.recalculate()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        msg = f"Erreur lors de la mise à jour : {str(e)}"
+        if is_ajax:
+            return jsonify({"error": msg}), 500
+        flash(msg, "danger")
+        return redirect(url_for('payments.payment_detail', payment_id=pm.id))
 
     is_complete = (pm.status == 'Paid') or (pm.remaining_amount <= 0)
 
