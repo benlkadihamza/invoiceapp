@@ -9,6 +9,7 @@ from routes.exports import exports_bp
 from routes.invoices import invoices_bp
 from routes.stock import stock_bp
 from routes.payments import payments_bp
+from routes.settings import settings_bp
 
 
 def register_blueprints(app):
@@ -23,4 +24,5 @@ def register_blueprints(app):
     app.register_blueprint(invoices_bp)
     app.register_blueprint(stock_bp)
     app.register_blueprint(payments_bp)
+    app.register_blueprint(settings_bp)
 
