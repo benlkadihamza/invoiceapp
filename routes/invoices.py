@@ -229,8 +229,12 @@ def list_invoices():
     return render_template('invoices.html', invoices=invoices)
 
 
+from idempotency import idempotent_route
+
+
 @invoices_bp.route('/save', methods=['POST'])
 @login_required
+@idempotent_route()
 def save_invoice_route():
     data = request.get_json(silent=True) or {}
     try:
@@ -747,6 +751,7 @@ def download_saved_excel(invoice_id):
 
 @invoices_bp.route('/<int:invoice_id>/delete', methods=['POST'])
 @login_required
+@idempotent_route()
 def delete_invoice_route(invoice_id):
     try:
         invoice = db.session.get(Invoice, invoice_id)
