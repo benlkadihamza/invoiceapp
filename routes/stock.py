@@ -107,31 +107,40 @@ def stock_page():
     )
 
 
+from idempotency import idempotent_route
+
+
 @stock_bp.route('/add', methods=['POST'])
 @login_required
+@idempotent_route()
 def stock_add_product():
     title = request.form.get("title", "").strip()
     if not title:
         return jsonify({"error": "Le nom du produit est requis."}), 400
     if Product.query.filter_by(title=title).first():
         return jsonify({"error": "Un produit avec ce nom existe déjà."}), 400
-    photo = ""
-    if "photo" in request.files:
-        f = request.files["photo"]
-        if f.filename and allowed_image(f.filename):
-            ext = f.filename.rsplit(".", 1)[1].lower()
-            filename = f"{uuid.uuid4().hex}.{ext}"
-            upload_folder = get_upload_folder()
-            f.save(os.path.join(upload_folder, filename))
-            photo = filename
-    product = Product(title=title, photo=photo, stock_quantity=0)
-    db.session.add(product)
-    db.session.commit()
-    return jsonify({"success": True, "id": product.id})
+    try:
+        photo = ""
+        if "photo" in request.files:
+            f = request.files["photo"]
+            if f.filename and allowed_image(f.filename):
+                ext = f.filename.rsplit(".", 1)[1].lower()
+                filename = f"{uuid.uuid4().hex}.{ext}"
+                upload_folder = get_upload_folder()
+                f.save(os.path.join(upload_folder, filename))
+                photo = filename
+        product = Product(title=title, photo=photo, stock_quantity=0)
+        db.session.add(product)
+        db.session.commit()
+        return jsonify({"success": True, "id": product.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Erreur lors de l'ajout: {str(e)}"}), 500
 
 
 @stock_bp.route('/edit/<int:product_id>', methods=['POST'])
 @login_required
+@idempotent_route()
 def stock_edit_product(product_id):
     product = db.session.get(Product, product_id)
     if not product:
@@ -144,43 +153,53 @@ def stock_edit_product(product_id):
     ).first()
     if existing:
         return jsonify({"error": "Un produit avec ce nom existe déjà."}), 400
-    upload_folder = get_upload_folder()
-    if "photo" in request.files:
-        f = request.files["photo"]
-        if f.filename and allowed_image(f.filename):
-            ext = f.filename.rsplit(".", 1)[1].lower()
-            filename = f"{uuid.uuid4().hex}.{ext}"
-            f.save(os.path.join(upload_folder, filename))
-            if product.photo:
-                old_path = os.path.join(upload_folder, product.photo)
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-            product.photo = filename
-    product.title = title
-    product.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    db.session.commit()
-    return jsonify({"success": True})
+    try:
+        upload_folder = get_upload_folder()
+        if "photo" in request.files:
+            f = request.files["photo"]
+            if f.filename and allowed_image(f.filename):
+                ext = f.filename.rsplit(".", 1)[1].lower()
+                filename = f"{uuid.uuid4().hex}.{ext}"
+                f.save(os.path.join(upload_folder, filename))
+                if product.photo:
+                    old_path = os.path.join(upload_folder, product.photo)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                product.photo = filename
+        product.title = title
+        product.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Erreur lors de la modification: {str(e)}"}), 500
 
 
 @stock_bp.route('/delete/<int:product_id>', methods=['POST'])
 @login_required
+@idempotent_route()
 def stock_delete_product(product_id):
     product = db.session.get(Product, product_id)
     if not product:
         return jsonify({"error": "Produit non trouvé."}), 404
-    upload_folder = get_upload_folder()
-    if product.photo:
-        photo_path = os.path.join(upload_folder, product.photo)
-        if os.path.exists(photo_path):
-            os.remove(photo_path)
-    StockHistory.query.filter_by(product_id=product_id).delete()
-    db.session.delete(product)
-    db.session.commit()
-    return jsonify({"success": True})
+    try:
+        upload_folder = get_upload_folder()
+        if product.photo:
+            photo_path = os.path.join(upload_folder, product.photo)
+            if os.path.exists(photo_path):
+                os.remove(photo_path)
+        StockHistory.query.filter_by(product_id=product_id).delete()
+        db.session.delete(product)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Erreur lors de la suppression: {str(e)}"}), 500
 
 
 @stock_bp.route('/add-stock/<int:product_id>', methods=['POST'])
 @login_required
+@idempotent_route()
 def stock_add_stock(product_id):
     product = db.session.get(Product, product_id)
     if not product:
@@ -195,20 +214,25 @@ def stock_add_stock(product_id):
         return jsonify({"error": "Quantité invalide."}), 400
     if qty < 1:
         return jsonify({"error": "La quantité doit être au moins 1."}), 400
-    stock_before = product.stock_quantity
-    product.stock_quantity += qty
-    product.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    history = StockHistory(
-        product_id=product.id, change_type="ADD", quantity=qty,
-        stock_before=stock_before, stock_after=product.stock_quantity,
-    )
-    db.session.add(history)
-    db.session.commit()
-    return jsonify({"success": True, "stock": product.stock_quantity})
+    try:
+        stock_before = product.stock_quantity
+        product.stock_quantity += qty
+        product.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = StockHistory(
+            product_id=product.id, change_type="ADD", quantity=qty,
+            stock_before=stock_before, stock_after=product.stock_quantity,
+        )
+        db.session.add(history)
+        db.session.commit()
+        return jsonify({"success": True, "stock": product.stock_quantity})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Erreur lors de l'ajout de stock: {str(e)}"}), 500
 
 
 @stock_bp.route('/remove-stock/<int:product_id>', methods=['POST'])
 @login_required
+@idempotent_route()
 def stock_remove_stock(product_id):
     product = db.session.get(Product, product_id)
     if not product:
@@ -227,16 +251,20 @@ def stock_remove_stock(product_id):
         return jsonify({
             "error": f"Stock insuffisant. Stock disponible: {product.stock_quantity}"
         }), 400
-    stock_before = product.stock_quantity
-    product.stock_quantity -= qty
-    product.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    history = StockHistory(
-        product_id=product.id, change_type="REMOVE", quantity=qty,
-        stock_before=stock_before, stock_after=product.stock_quantity,
-    )
-    db.session.add(history)
-    db.session.commit()
-    return jsonify({"success": True, "stock": product.stock_quantity})
+    try:
+        stock_before = product.stock_quantity
+        product.stock_quantity -= qty
+        product.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        history = StockHistory(
+            product_id=product.id, change_type="REMOVE", quantity=qty,
+            stock_before=stock_before, stock_after=product.stock_quantity,
+        )
+        db.session.add(history)
+        db.session.commit()
+        return jsonify({"success": True, "stock": product.stock_quantity})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Erreur lors du retrait de stock: {str(e)}"}), 500
 
 
 @stock_bp.route('/report')
