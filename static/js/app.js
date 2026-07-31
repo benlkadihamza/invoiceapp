@@ -138,6 +138,43 @@ function initSidebar() {
 // 4. ALERTS, TOOLTIPS & CONFIRMATION MODAL
 //==============================================================================
 function initUIUtilities() {
+    // Universal Submit Protection & Loading State for all POST forms
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form || form.tagName !== 'FORM') return;
+
+        // Skip GET forms (like search filters)
+        if (form.method && form.method.toUpperCase() === 'GET') return;
+
+        // Prevent double submission if form is already submitting
+        if (form.dataset.submitting === 'true') {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        form.dataset.submitting = 'true';
+
+        // Find primary submit button
+        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (submitBtn) {
+            if (submitBtn.disabled) {
+                e.preventDefault();
+                return false;
+            }
+            submitBtn.disabled = true;
+            submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+        }
+
+        // Disable cancel/secondary buttons to prevent double click
+        form.querySelectorAll('.btn-outline-secondary, a.btn, button:not([type="submit"])').forEach(btn => {
+            if (btn.tagName === 'BUTTON') btn.disabled = true;
+            btn.classList.add('disabled');
+            btn.setAttribute('aria-disabled', 'true');
+        });
+    });
+
     // Alert dismissal
     document.querySelectorAll('[data-bs-dismiss="alert"]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -576,7 +613,8 @@ function getFormData() {
         remise: remiseAmount,
         payer_enabled: payerEnabled,
         payer: payerAmount,
-        net_total: netTotal
+        net_total: netTotal,
+        request_token: document.getElementById('invoice_request_token')?.value || ''
     };
 
     if (currentInvoiceId !== null) {
@@ -777,21 +815,36 @@ async function handleInvoiceExcelDownload() {
     }
 }
 
+let isInvoiceSaving = false;
 async function handleInvoiceSave() {
+    if (isInvoiceSaving) return;
+
     const data = getFormData();
     if (!data.items.length) {
         showErrorBanner('Ajoutez au moins un article.');
         return;
     }
 
+    const saveBtn = document.getElementById('btn-save');
     const wasEditing = currentInvoiceId !== null;
+    let origHtml = '';
+
+    if (saveBtn) {
+        if (saveBtn.disabled) return;
+        saveBtn.disabled = true;
+        origHtml = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    }
+
+    isInvoiceSaving = true;
 
     try {
         const res = await fetch('/invoices/save', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
+                'X-CSRFToken': getCsrfToken(),
+                'X-Request-Token': data.request_token || ''
             },
             body: JSON.stringify(data)
         });
@@ -805,10 +858,20 @@ async function handleInvoiceSave() {
         } else {
             const msg = result && result.error ? result.error : "Erreur lors de l'enregistrement de la facture.";
             showErrorBanner(msg);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = origHtml;
+            }
         }
     } catch (e) {
         showErrorBanner("Erreur lors de l'enregistrement de la facture.");
         console.error(e);
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = origHtml;
+        }
+    } finally {
+        isInvoiceSaving = false;
     }
 }
 
