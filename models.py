@@ -189,3 +189,17 @@ class StockHistory(db.Model):
         default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
 
+
+class MonthlyBackup(db.Model):
+    __tablename__ = "monthly_backups"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    month = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    downloaded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    downloaded_by = db.Column(db.String(100), nullable=False, default='admin')
+    completed = db.Column(db.Boolean, nullable=False, default=True)
+
+    __table_args__ = (db.UniqueConstraint('month', 'year', name='_month_year_uc'),)
+
+
