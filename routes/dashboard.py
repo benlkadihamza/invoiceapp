@@ -93,6 +93,24 @@ def index():
     total_remaining_amount = sum(p.remaining_amount for p in all_pm)
     total_collected_amount = sum(p.total_paid for p in all_pm)
 
+    import time
+    from flask import session
+    from models import MonthlyBackup
+    from routes.settings import FRENCH_MONTHS
+
+    current_backup = MonthlyBackup.query.filter_by(
+        month=current_month, year=current_year, completed=True
+    ).first()
+
+    has_backup = bool(current_backup)
+    snooze_until = session.get('backup_snooze_until', 0)
+    is_snoozed = time.time() < snooze_until
+    dismissed_month = session.get('backup_dismissed_month')
+    is_dismissed = (dismissed_month == f"{current_year}_{current_month}")
+
+    show_backup_reminder = not has_backup and not is_snoozed and not is_dismissed
+    current_french_month_year = f"{FRENCH_MONTHS.get(current_month, 'Mois')} {current_year}"
+
     return render_template('dashboard.html',
                            current_balance=current_balance,
                            total_income=total_income, total_expense=total_expense,
@@ -109,7 +127,10 @@ def index():
                            payments_partial=payments_partial,
                            payments_paid=payments_paid,
                            total_remaining_amount=total_remaining_amount,
-                           total_collected_amount=total_collected_amount)
+                           total_collected_amount=total_collected_amount,
+                           show_backup_reminder=show_backup_reminder,
+                           current_french_month_year=current_french_month_year,
+                           has_backup=has_backup)
 
 
 def _compute_running_balance(transactions):
