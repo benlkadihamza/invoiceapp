@@ -341,68 +341,104 @@
     });
 
     const activeStockRequests = {};
-    async function addStock(productId) {
-        if (activeStockRequests['add_' + productId]) return;
-        if (!confirm("Voulez-vous ajouter cette quantité au stock ?")) return;
+    function addStock(productId) {
         const qtyEl = document.getElementById('qty-' + productId);
-        const qty = parseInt(qtyEl.value, 10);
+        const qty = parseInt(qtyEl ? qtyEl.value : '0', 10);
         if (!qty || qty < 1) {
-            alert('Quantité invalide.');
+            confirmDelete(null, 'Veuillez saisir une quantité valide (au moins 1).', {
+                title: 'Quantité invalide',
+                btnText: 'OK',
+                btnClass: 'btn-primary'
+            });
             return;
         }
-        activeStockRequests['add_' + productId] = true;
-        try {
-            const res = await fetch('/stock/add-stock/' + productId, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify({ quantity: qty })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.error || 'Erreur.');
+
+        confirmDelete(async function() {
+            if (activeStockRequests['add_' + productId]) return;
+            activeStockRequests['add_' + productId] = true;
+            try {
+                const res = await fetch('/stock/add-stock/' + productId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ quantity: qty })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    confirmDelete(null, data.error || 'Erreur lors de l\'ajout.', {
+                        title: 'Erreur',
+                        btnText: 'OK',
+                        btnClass: 'btn-primary'
+                    });
+                }
+            } catch (err) {
+                confirmDelete(null, 'Erreur de connexion.', {
+                    title: 'Erreur',
+                    btnText: 'OK',
+                    btnClass: 'btn-primary'
+                });
+            } finally {
+                delete activeStockRequests['add_' + productId];
             }
-        } catch (err) {
-            alert('Erreur de connexion.');
-        } finally {
-            delete activeStockRequests['add_' + productId];
-        }
+        }, `Êtes-vous sûr de vouloir ajouter ${qty} unité(s) au stock ?`, {
+            title: "Confirmer l'ajout au stock",
+            btnText: "Ajouter",
+            btnClass: "btn-success"
+        });
     }
 
-    async function removeStock(productId) {
-        if (activeStockRequests['remove_' + productId]) return;
-        if (!confirm("Voulez-vous retirer cette quantité du stock ?")) return;
+    function removeStock(productId) {
         const qtyEl = document.getElementById('qty-' + productId);
-        const qty = parseInt(qtyEl.value, 10);
+        const qty = parseInt(qtyEl ? qtyEl.value : '0', 10);
         if (!qty || qty < 1) {
-            alert('Quantité invalide.');
+            confirmDelete(null, 'Veuillez saisir une quantité valide (au moins 1).', {
+                title: 'Quantité invalide',
+                btnText: 'OK',
+                btnClass: 'btn-primary'
+            });
             return;
         }
-        activeStockRequests['remove_' + productId] = true;
-        try {
-            const res = await fetch('/stock/remove-stock/' + productId, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify({ quantity: qty })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.error || 'Erreur.');
+
+        confirmDelete(async function() {
+            if (activeStockRequests['remove_' + productId]) return;
+            activeStockRequests['remove_' + productId] = true;
+            try {
+                const res = await fetch('/stock/remove-stock/' + productId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ quantity: qty })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    confirmDelete(null, data.error || 'Erreur lors du retrait.', {
+                        title: 'Erreur',
+                        btnText: 'OK',
+                        btnClass: 'btn-primary'
+                    });
+                }
+            } catch (err) {
+                confirmDelete(null, 'Erreur de connexion.', {
+                    title: 'Erreur',
+                    btnText: 'OK',
+                    btnClass: 'btn-primary'
+                });
+            } finally {
+                delete activeStockRequests['remove_' + productId];
             }
-        } catch (err) {
-            alert('Erreur de connexion.');
-        } finally {
-            delete activeStockRequests['remove_' + productId];
-        }
+        }, `Êtes-vous sûr de vouloir retirer ${qty} unité(s) du stock ?`, {
+            title: "Confirmer le retrait du stock",
+            btnText: "Retirer",
+            btnClass: "btn-danger"
+        });
     }
 
     function deleteProduct(productId) {
@@ -416,12 +452,24 @@
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert(data.error || 'Erreur lors de la suppression.');
+                    confirmDelete(null, data.error || 'Erreur lors de la suppression.', {
+                        title: 'Erreur',
+                        btnText: 'OK',
+                        btnClass: 'btn-primary'
+                    });
                 }
             } catch (err) {
-                alert('Erreur de connexion.');
+                confirmDelete(null, 'Erreur de connexion.', {
+                    title: 'Erreur',
+                    btnText: 'OK',
+                    btnClass: 'btn-primary'
+                });
             }
-        }, "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.");
+        }, "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.", {
+            title: "Confirmer la suppression",
+            btnText: "Supprimer",
+            btnClass: "btn-danger"
+        });
     }
 
     document.getElementById('search-input')?.addEventListener('input', function(e) {
