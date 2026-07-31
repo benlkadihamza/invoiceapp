@@ -335,25 +335,6 @@ def generate_pdf():
         price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
     price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
 
-    inv_id = data.get('id')
-    pm = None
-    if inv_id:
-        from models import InvoicePayment
-        pm = InvoicePayment.query.filter_by(invoice_id=inv_id).first()
-    if pm:
-        paid_amt = pm.total_paid
-        rem_amt = pm.remaining_amount
-        st_text = "PAYÉ" if pm.status == "Paid" else ("PARTIEL" if pm.status == "Partial" else "EN ATTENTE")
-    else:
-        paid_amt = 0.0
-        rem_amt = net_total
-        st_text = "EN ATTENTE"
-
-    pdf.ln(2)
-    price_line("Statut Paiement", st_text)
-    price_line("Montant Paye", f"{paid_amt:,.2f} DH".replace(',', ' '))
-    price_line("Reste a Payer", f"{rem_amt:,.2f} DH".replace(',', ' '))
-
     name = f"{safe_filename(data.get('client_name', ''))}.pdf"
     buf = BytesIO()
     pdf.output(buf)
@@ -579,22 +560,6 @@ def download_saved_pdf(invoice_id):
     if payer > 0:
         price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
     price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
-
-    from models import InvoicePayment
-    pm = InvoicePayment.query.filter_by(invoice_id=invoice_id).first()
-    if pm:
-        paid_amt = pm.total_paid
-        rem_amt = pm.remaining_amount
-        st_text = "PAYÉ" if pm.status == "Paid" else ("PARTIEL" if pm.status == "Partial" else "EN ATTENTE")
-    else:
-        paid_amt = 0.0
-        rem_amt = net_total
-        st_text = "EN ATTENTE"
-
-    pdf.ln(2)
-    price_line("Statut Paiement", st_text)
-    price_line("Montant Paye", f"{paid_amt:,.2f} DH".replace(',', ' '))
-    price_line("Reste a Payer", f"{rem_amt:,.2f} DH".replace(',', ' '))
 
     name = f"{safe_filename(data.get('client_name', ''))}.pdf"
     buf = BytesIO()
