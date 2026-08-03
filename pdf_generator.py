@@ -47,10 +47,13 @@ def _safe(text):
     return text.encode('latin-1', 'replace').decode('latin-1')
 
 
+from utils import format_price
+
+
 def _fmt(val):
     if val is None:
-        return '0.00'
-    return f'{val:,.2f}'
+        val = 0.0
+    return format_price(val)
 
 
 def _get_logo_path():
@@ -130,7 +133,7 @@ class FinanceReportPDF(FPDF):
         return 1, 1
 
     def header(self):
-        if self._logo_w > 0 and self._logo_h > 0:
+        if self.page_no() == 1 and self._logo_w > 0 and self._logo_h > 0:
             try:
                 self.image(self._logo_path, x=LOGO_X, y=LOGO_Y, h=self._logo_h)
             except Exception:
@@ -457,7 +460,7 @@ class FinanceReportPDF(FPDF):
         self.set_text_color(0, 0, 0)
 
 
-def generate_monthly_pdf(year, month, hide_net=False, hide_balance=False):
+def generate_monthly_pdf(year, month, hide_net=False, hide_balance=False, show_daily_totals=False):
     from models import Transaction
     from sqlalchemy import extract
 
@@ -511,7 +514,9 @@ def generate_monthly_pdf(year, month, hide_net=False, hide_balance=False):
         pdf.set_text_color(150, 150, 150)
         pdf.cell(0, 10, _safe('Aucune transaction pour cette periode'), align='C', new_x="LMARGIN", new_y="NEXT")
 
-    pdf._draw_daily_totals(transactions, col_widths, hide_net=hide_net)
+    if show_daily_totals:
+        pdf._draw_daily_totals(transactions, col_widths, hide_net=hide_net)
+
     pdf._draw_person_summary(transactions, hide_net=hide_net)
     pdf._draw_final_totals(total_income, total_expense, closing_balance, hide_net=hide_net, hide_balance=hide_balance)
 
