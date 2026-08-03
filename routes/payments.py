@@ -7,6 +7,7 @@ from fpdf import FPDF
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from models import db, Invoice, InvoicePayment
+from utils import format_price
 
 payments_bp = Blueprint('payments', __name__, url_prefix='/payments')
 
@@ -113,7 +114,7 @@ def update_payment(payment_id):
     inv_total = round(pm.invoice_total, 2)
     if total_paid > inv_total:
         exceed_amount = round(total_paid - inv_total, 2)
-        msg = f"Erreur : Le montant du paiement dépasse le reste à payer de la facture ! (Total saisi : {total_paid:,.2f} DH | Total facture : {inv_total:,.2f} DH | Dépassement : {exceed_amount:,.2f} DH)"
+        msg = f"Erreur : Le montant du paiement dépasse le reste à payer de la facture ! (Total saisi : {format_price(total_paid)} DH | Total facture : {format_price(inv_total)} DH | Dépassement : {format_price(exceed_amount)} DH)"
         if is_ajax:
             return jsonify({"error": msg}), 400
         flash(msg, "danger")
@@ -312,12 +313,12 @@ def export_pdf():
         status_str = "PAYÉ" if pm.status == "Paid" else ("PARTIEL" if pm.status == "Partial" else "EN ATTENTE")
         pdf.cell(col_w[0], 6, str(pm.invoice_number or f"#{pm.invoice_id}")[:12], border=1, align="C")
         pdf.cell(col_w[1], 6, str(pm.customer_name)[:22], border=1, align="L")
-        pdf.cell(col_w[2], 6, f"{pm.invoice_total:,.2f}".replace(',', ' '), border=1, align="R")
-        pdf.cell(col_w[3], 6, f"{pm.payment1_amount:,.2f}".replace(',', ' '), border=1, align="R")
-        pdf.cell(col_w[4], 6, f"{pm.payment2_amount:,.2f}".replace(',', ' '), border=1, align="R")
-        pdf.cell(col_w[5], 6, f"{pm.payment3_amount:,.2f}".replace(',', ' '), border=1, align="R")
-        pdf.cell(col_w[6], 6, f"{pm.payment4_amount:,.2f}".replace(',', ' '), border=1, align="R")
-        pdf.cell(col_w[7], 6, f"{pm.remaining_amount:,.2f}".replace(',', ' '), border=1, align="R")
+        pdf.cell(col_w[2], 6, f"{format_price(pm.invoice_total)}", border=1, align="R")
+        pdf.cell(col_w[3], 6, f"{format_price(pm.payment1_amount)}", border=1, align="R")
+        pdf.cell(col_w[4], 6, f"{format_price(pm.payment2_amount)}", border=1, align="R")
+        pdf.cell(col_w[5], 6, f"{format_price(pm.payment3_amount)}", border=1, align="R")
+        pdf.cell(col_w[6], 6, f"{format_price(pm.payment4_amount)}", border=1, align="R")
+        pdf.cell(col_w[7], 6, f"{format_price(pm.remaining_amount)}", border=1, align="R")
         pdf.cell(col_w[8], 6, status_str, border=1, align="C")
         date_str = (pm.updated_at or pm.created_at or "").split(" ")[0]
         pdf.cell(col_w[9], 6, date_str, border=1, align="C")
