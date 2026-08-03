@@ -32,7 +32,7 @@
         <div class="card border-start border-success border-4 shadow-sm">
             <div class="card-body text-center">
                 <small class="text-muted">Revenus</small>
-                <h4 class="fw-bold text-success mb-0">{{ "{:,.2f}".format(total_income) }} DH</h4>
+                <h4 class="fw-bold text-success mb-0">{{ total_income | format_price }} DH</h4>
             </div>
         </div>
     </div>
@@ -40,7 +40,7 @@
         <div class="card border-start border-danger border-4 shadow-sm">
             <div class="card-body text-center">
                 <small class="text-muted">Dépenses</small>
-                <h4 class="fw-bold text-danger mb-0">{{ "{:,.2f}".format(total_expense) }} DH</h4>
+                <h4 class="fw-bold text-danger mb-0">{{ total_expense | format_price }} DH</h4>
             </div>
         </div>
     </div>
@@ -48,7 +48,7 @@
         <div class="card border-start border-primary border-4 shadow-sm">
             <div class="card-body text-center">
                 <small class="text-muted">Solde net</small>
-                <h4 class="fw-bold {% if net_balance >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">{{ "{:,.2f}".format(net_balance) }} DH</h4>
+                <h4 class="fw-bold {% if net_balance >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">{{ net_balance | format_price }} DH</h4>
             </div>
         </div>
     </div>
@@ -77,10 +77,10 @@
                         <td class="ps-3">{{ t.formatted_date }}</td>
                         <td>{{ t.person.name if t.person else '?' }}</td>
                         <td>{{ t.description }}</td>
-                        <td class="text-end text-success fw-bold">{% if t.income > 0 %}+{{ "{:,.2f}".format(t.income) }}{% else %}-{% endif %}</td>
-                        <td class="text-end text-danger fw-bold">{% if t.expense > 0 %}{{ "{:,.2f}".format(t.expense) }}{% else %}-{% endif %}</td>
+                        <td class="text-end text-success fw-bold">{% if t.income > 0 %}+{{ t.income | format_price }}{% else %}-{% endif %}</td>
+                        <td class="text-end text-danger fw-bold">{% if t.expense > 0 %}{{ t.expense | format_price }}{% else %}-{% endif %}</td>
                         <td class="text-end fw-bold {% if t.net >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if t.net >= 0 %}+{% endif %}{{ "{:,.2f}".format(t.net) }}
+                            {% if t.net >= 0 %}+{% endif %}{{ t.net | format_price }}
                         </td>
                     </tr>
                     {% endfor %}
