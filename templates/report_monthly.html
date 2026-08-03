@@ -35,22 +35,22 @@
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card border-start border-success border-4 shadow-sm">
-            <div class="card-body"><small class="text-muted">Total Revenus</small><h5 class="fw-bold text-success mb-0">{{ "{:,.2f}".format(total_income) }} DH</h5></div>
+            <div class="card-body"><small class="text-muted">Total Revenus</small><h5 class="fw-bold text-success mb-0">{{ total_income | format_price }} DH</h5></div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card border-start border-danger border-4 shadow-sm">
-            <div class="card-body"><small class="text-muted">Total Dépenses</small><h5 class="fw-bold text-danger mb-0">{{ "{:,.2f}".format(total_expense) }} DH</h5></div>
+            <div class="card-body"><small class="text-muted">Total Dépenses</small><h5 class="fw-bold text-danger mb-0">{{ total_expense | format_price }} DH</h5></div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card border-start border-info border-4 shadow-sm">
-            <div class="card-body"><small class="text-muted">Bénéfice net</small><h5 class="fw-bold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">{{ "{:,.2f}".format(net_profit) }} DH</h5></div>
+            <div class="card-body"><small class="text-muted">Bénéfice net</small><h5 class="fw-bold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">{{ net_profit | format_price }} DH</h5></div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card border-start border-primary border-4 shadow-sm">
-            <div class="card-body"><small class="text-muted">Solde de clôture</small><h5 class="fw-bold text-primary mb-0">{{ "{:,.2f}".format(closing_balance) }} DH</h5></div>
+            <div class="card-body"><small class="text-muted">Solde de clôture</small><h5 class="fw-bold text-primary mb-0">{{ closing_balance | format_price }} DH</h5></div>
         </div>
     </div>
 </div>
@@ -76,18 +76,18 @@
                         <td class="ps-3">{{ t.formatted_date }}</td>
                         <td>{{ t.person.name if t.person else '?' }}</td>
                         <td>{{ t.description }}</td>
-                        <td class="text-end text-success">{% if t.income > 0 %}+{{ "{:,.2f}".format(t.income) }}{% else %}-{% endif %}</td>
-                        <td class="text-end text-danger">{% if t.expense > 0 %}{{ "{:,.2f}".format(t.expense) }}{% else %}-{% endif %}</td>
-                        <td class="text-end fw-bold {% if t.net >= 0 %}text-success{% else %}text-danger{% endif %}">{% if t.net >= 0 %}+{% endif %}{{ "{:,.2f}".format(t.net) }}</td>
+                        <td class="text-end text-success">{% if t.income > 0 %}+{{ t.income | format_price }}{% else %}-{% endif %}</td>
+                        <td class="text-end text-danger">{% if t.expense > 0 %}{{ t.expense | format_price }}{% else %}-{% endif %}</td>
+                        <td class="text-end fw-bold {% if t.net >= 0 %}text-success{% else %}text-danger{% endif %}">{% if t.net >= 0 %}+{% endif %}{{ t.net | format_price }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot class="table-light fw-bold">
                     <tr>
                         <td colspan="3" class="ps-3">Totaux</td>
-                        <td class="text-end text-success">{{ "{:,.2f}".format(total_income) }} DH</td>
-                        <td class="text-end text-danger">{{ "{:,.2f}".format(total_expense) }} DH</td>
-                        <td class="text-end {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "{:,.2f}".format(net_profit) }} DH</td>
+                        <td class="text-end text-success">{{ total_income | format_price }} DH</td>
+                        <td class="text-end text-danger">{{ total_expense | format_price }} DH</td>
+                        <td class="text-end {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ net_profit | format_price }} DH</td>
                     </tr>
                 </tfoot>
             </table>
@@ -113,9 +113,9 @@
                     {% for name, data in person_totals.items() %}
                     <tr>
                         <td class="ps-3 fw-semibold">{{ name }}</td>
-                        <td class="text-end text-success">{{ "{:,.2f}".format(data.income) }} DH</td>
-                        <td class="text-end text-danger">{{ "{:,.2f}".format(data.expense) }} DH</td>
-                        <td class="text-end fw-bold {% if data.net >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "{:,.2f}".format(data.net) }} DH</td>
+                        <td class="text-end text-success">{{ data.income | format_price }} DH</td>
+                        <td class="text-end text-danger">{{ data.expense | format_price }} DH</td>
+                        <td class="text-end fw-bold {% if data.net >= 0 %}text-success{% else %}text-danger{% endif %}">{{ data.net | format_price }} DH</td>
                     </tr>
                     {% endfor %}
                 </tbody>
