@@ -147,3 +147,27 @@ def dismiss_reminder():
     session['backup_dismissed_month'] = f"{now.year}_{now.month}"
     flash('Rappel ignoré pour cette session.', 'info')
     return redirect(request.referrer or url_for('dashboard.index'))
+
+
+@settings_bp.route('/toggle-decimals', methods=['POST'])
+@login_required
+def toggle_decimals():
+    show_decimals = request.form.get('show_decimals') == 'on'
+    current_user.show_decimals = show_decimals
+    db.session.commit()
+    status_str = "activé (.00)" if show_decimals else "désactivé (sans .00)"
+    flash(f"Affichage des décimales {status_str}.", "success")
+    return redirect(url_for('settings.index'))
+
+
+@settings_bp.route('/toggle-daily-totals', methods=['POST'])
+@login_required
+def toggle_daily_totals():
+    show_daily_totals = request.form.get('show_daily_totals') == 'on'
+    current_user.show_daily_totals = show_daily_totals
+    db.session.commit()
+    status_str = "affichés dans le PDF" if show_daily_totals else "masqués (par défaut)"
+    flash(f"Totaux quotidiens dans le PDF mensuel : {status_str}.", "success")
+    return redirect(url_for('settings.index'))
+
+
