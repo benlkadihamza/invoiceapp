@@ -23,7 +23,7 @@ class ChangePasswordForm(FlaskForm):
 
 class TransactionForm(FlaskForm):
     date = DateField('Date', validators=[DataRequired()], format='%Y-%m-%d')
-    person_id = SelectField('Personne', coerce=int, validators=[DataRequired()])
+    person_id = SelectField('Personne', coerce=int, validators=[DataRequired(message="Veuillez sélectionner une personne.")])
     payment_method_id = SelectField('Mode de paiement', coerce=int, validators=[Optional()])
     description = StringField('Description', validators=[DataRequired(), Length(max=200)])
     income = FloatField('Revenu (DH)', validators=[Optional()])
