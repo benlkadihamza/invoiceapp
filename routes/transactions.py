@@ -100,7 +100,7 @@ def add():
     form = TransactionForm()
     if not form.date.data:
         form.date.data = date.today()
-    form.person_id.choices = [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
+    form.person_id.choices = [(0, '-- Sélectionner une personne --')] + [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
 
     if form.validate_on_submit():
@@ -113,11 +113,6 @@ def add():
 
             income_val = form.income.data or 0.0
             expense_val = form.expense.data or 0.0
-
-            if income_val > 0:
-                expense_val = 0.0
-            elif expense_val > 0:
-                income_val = 0.0
 
             t = Transaction(
                 date=form.date.data,
@@ -153,7 +148,7 @@ def edit(id):
             form.income.data = None
         if not form.expense.data:
             form.expense.data = None
-    form.person_id.choices = [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
+    form.person_id.choices = [(0, '-- Sélectionner une personne --')] + [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
 
     if form.validate_on_submit():
@@ -166,11 +161,6 @@ def edit(id):
 
             income_val = form.income.data or 0.0
             expense_val = form.expense.data or 0.0
-
-            if income_val > 0:
-                expense_val = 0.0
-            elif expense_val > 0:
-                income_val = 0.0
 
             t.date = form.date.data
             t.description = form.description.data
