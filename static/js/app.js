@@ -266,7 +266,16 @@ function formatCurrency(amount) {
 // 5. INVOICE CALCULATIONS & CALCULATOR LOGIC
 //==============================================================================
 function formatNumber(n) {
-    return Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const val = Number(n) || 0;
+    const showDec = window.SHOW_DECIMALS || false;
+    if (showDec) {
+        return val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    } else {
+        if (Number.isInteger(val)) {
+            return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        }
+        return val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    }
 }
 
 function calculateRow(tr) {
