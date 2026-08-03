@@ -43,15 +43,15 @@
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block">Revenus</small>
-                        <strong class="text-success">{{ "{:,.0f}".format(item.income) }} DH</strong>
+                        <strong class="text-success">{{ item.income | format_price }} DH</strong>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block">Dépenses</small>
-                        <strong class="text-danger">{{ "{:,.0f}".format(item.expense) }} DH</strong>
+                        <strong class="text-danger">{{ item.expense | format_price }} DH</strong>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block">Net</small>
-                        <strong class="{% if item.income - item.expense >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "{:,.0f}".format(item.income - item.expense) }} DH</strong>
+                        <strong class="{% if item.income - item.expense >= 0 %}text-success{% else %}text-danger{% endif %}">{{ (item.income - item.expense) | format_price }} DH</strong>
                     </div>
                 </div>
             </div>
