@@ -82,15 +82,15 @@
                             {% endif %}
                         </td>
                         <td class="text-end fw-bold text-success">
-                            {% if t.income > 0 %}+{{ "{:,.2f}".format(t.income) }}{% else %}-{% endif %}
+                            {% if t.income > 0 %}+{{ t.income | format_price }}{% else %}-{% endif %}
                         </td>
                         <td class="text-end fw-bold text-danger">
-                            {% if t.expense > 0 %}{{ "{:,.2f}".format(t.expense) }}{% else %}-{% endif %}
+                            {% if t.expense > 0 %}{{ t.expense | format_price }}{% else %}-{% endif %}
                         </td>
                         <td class="text-end fw-bold {% if t.net >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if t.net >= 0 %}+{% endif %}{{ "{:,.2f}".format(t.net) }}
+                            {% if t.net >= 0 %}+{% endif %}{{ t.net | format_price }}
                         </td>
-                        <td class="text-end">{{ "{:,.2f}".format(item.balance) }}</td>
+                        <td class="text-end">{{ item.balance | format_price }}</td>
                         <td class="text-center text-nowrap">
                             <a href="{{ url_for('transactions.edit', id=t.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">
                                 <i class="bi bi-pencil"></i>
@@ -112,10 +112,10 @@
                 <tfoot class="table-light">
                     <tr class="fw-bold">
                         <td colspan="3" class="ps-3">Totaux</td>
-                        <td class="text-end text-success">{{ "{:,.2f}".format(total_income) }} DH</td>
-                        <td class="text-end text-danger">{{ "{:,.2f}".format(total_expense) }} DH</td>
+                        <td class="text-end text-success">{{ total_income | format_price }} DH</td>
+                        <td class="text-end text-danger">{{ total_expense | format_price }} DH</td>
                         <td class="text-end {% if total_income - total_expense >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "{:,.2f}".format(total_income - total_expense) }} DH
+                            {{ (total_income - total_expense) | format_price }} DH
                         </td>
                         <td colspan="2"></td>
                     </tr>
