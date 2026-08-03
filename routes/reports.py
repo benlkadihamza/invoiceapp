@@ -198,8 +198,16 @@ def yearly():
 def monthly_pdf(year, month):
     hide_net = request.args.get('hide_net', '0') in ['1', 'true', 'True']
     hide_balance = request.args.get('hide_balance', '0') in ['1', 'true', 'True']
+
+    show_daily_arg = request.args.get('show_daily_totals')
+    if show_daily_arg is not None:
+        show_daily_totals = show_daily_arg in ['1', 'true', 'True']
+    else:
+        from flask_login import current_user
+        show_daily_totals = getattr(current_user, 'show_daily_totals', False) if (current_user and current_user.is_authenticated) else False
+
     from pdf_generator import generate_monthly_pdf, MONTHS_FR
-    pdf_bytes = generate_monthly_pdf(year, month, hide_net=hide_net, hide_balance=hide_balance)
+    pdf_bytes = generate_monthly_pdf(year, month, hide_net=hide_net, hide_balance=hide_balance, show_daily_totals=show_daily_totals)
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
     month_name = MONTHS_FR[month]
