@@ -34,12 +34,12 @@
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block">Revenus</small>
-                        <strong class="text-success">{{ "{:,.0f}".format(p.total_income()) }}</strong>
+                        <strong class="text-success">{{ p.total_income() | format_price }}</strong>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block">Solde</small>
                         <strong class="{% if p.net_balance() >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "{:,.0f}".format(p.net_balance()) }}
+                            {{ p.net_balance() | format_price }}
                         </strong>
                     </div>
                 </div>
