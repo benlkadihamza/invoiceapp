@@ -51,19 +51,19 @@
             <div class="col-md-4">
                 <div class="p-2 rounded bg-light">
                     <small class="text-muted d-block">Montant Total Facture</small>
-                    <span class="fw-bold text-dark fs-5">{{ "{:,.2f}".format(payment.invoice_total) }} DH</span>
+                    <span class="fw-bold text-dark fs-5">{{ payment.invoice_total | format_price }} DH</span>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="p-2 rounded bg-success bg-opacity-10">
                     <small class="text-muted d-block">Total Payé (Encaissements)</small>
-                    <span class="fw-bold text-success fs-5" id="display-total-paid">{{ "{:,.2f}".format(payment.total_paid) }} DH</span>
+                    <span class="fw-bold text-success fs-5" id="display-total-paid">{{ payment.total_paid | format_price }} DH</span>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="p-2 rounded bg-danger bg-opacity-10">
                     <small class="text-muted d-block">Reste à Payer</small>
-                    <span class="fw-bold text-danger fs-5" id="display-remaining">{{ "{:,.2f}".format(payment.remaining_amount) }} DH</span>
+                    <span class="fw-bold text-danger fs-5" id="display-remaining">{{ payment.remaining_amount | format_price }} DH</span>
                 </div>
             </div>
         </div>
