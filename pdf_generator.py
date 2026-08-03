@@ -29,6 +29,7 @@ LOGO_Y = 10
 def _safe(text):
     if text is None:
         return ''
+    text = str(text)
     replacements = {
         '\u00e9': 'e', '\u00e8': 'e', '\u00ea': 'e', '\u00eb': 'e',
         '\u00e0': 'a', '\u00e2': 'a', '\u00e4': 'a',
