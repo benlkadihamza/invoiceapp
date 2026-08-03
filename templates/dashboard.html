@@ -39,7 +39,7 @@
                     <div>
                         <p class="text-muted small mb-1">Solde actuel</p>
                         <h5 class="fw-bold mb-0 {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "{:,.2f}".format(current_balance) }} DH
+                            {{ current_balance | format_price }} DH
                         </h5>
                     </div>
                     <span class="badge bg-{% if current_balance >= 0 %}success{% else %}danger{% endif %} bg-opacity-10 p-2">
@@ -55,7 +55,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <p class="text-muted small mb-1">Total Revenus</p>
-                        <h5 class="fw-bold mb-0 text-primary">{{ "{:,.2f}".format(total_income) }} DH</h5>
+                        <h5 class="fw-bold mb-0 text-primary">{{ total_income | format_price }} DH</h5>
                     </div>
                     <span class="badge bg-primary bg-opacity-10 p-2">
                         <i class="bi bi-arrow-down-circle fs-5 text-primary"></i>
@@ -70,7 +70,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <p class="text-muted small mb-1">Total Dépenses</p>
-                        <h5 class="fw-bold mb-0 text-danger">{{ "{:,.2f}".format(total_expense) }} DH</h5>
+                        <h5 class="fw-bold mb-0 text-danger">{{ total_expense | format_price }} DH</h5>
                     </div>
                     <span class="badge bg-danger bg-opacity-10 p-2">
                         <i class="bi bi-arrow-up-circle fs-5 text-danger"></i>
@@ -86,7 +86,7 @@
                     <div>
                         <p class="text-muted small mb-1">Net mensuel</p>
                         <h5 class="fw-bold mb-0 {% if monthly_net >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "{:,.2f}".format(monthly_net) }} DH
+                            {{ monthly_net | format_price }} DH
                         </h5>
                     </div>
                     <span class="badge bg-info bg-opacity-10 p-2">
@@ -101,8 +101,8 @@
             <div class="card-body">
                 <p class="text-muted small mb-1">Aujourd'hui</p>
                 <div class="small fw-semibold mt-1">
-                    <span class="text-success me-1"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(today_income) }}</span>
-                    <span class="text-danger ms-1"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(today_expense) }}</span>
+                    <span class="text-success me-1"><i class="bi bi-arrow-down"></i> {{ today_income | format_price }}</span>
+                    <span class="text-danger ms-1"><i class="bi bi-arrow-up"></i> {{ today_expense | format_price }}</span>
                 </div>
             </div>
         </div>
@@ -112,8 +112,8 @@
             <div class="card-body">
                 <p class="text-muted small mb-1">Cette année</p>
                 <div class="small fw-semibold mt-1">
-                    <span class="text-success me-1"><i class="bi bi-arrow-down"></i> {{ "{:,.0f}".format(year_income) }}</span>
-                    <span class="text-danger ms-1"><i class="bi bi-arrow-up"></i> {{ "{:,.0f}".format(year_expense) }}</span>
+                    <span class="text-success me-1"><i class="bi bi-arrow-down"></i> {{ year_income | format_price }}</span>
+                    <span class="text-danger ms-1"><i class="bi bi-arrow-up"></i> {{ year_expense | format_price }}</span>
                 </div>
             </div>
         </div>
@@ -159,7 +159,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <p class="text-muted small mb-1">Montant Restant Total</p>
-                        <h5 class="fw-bold mb-0 text-danger">{{ "{:,.2f}".format(total_remaining_amount) }} DH</h5>
+                        <h5 class="fw-bold mb-0 text-danger">{{ total_remaining_amount | format_price }} DH</h5>
                     </div>
                     <span class="badge bg-danger bg-opacity-10 p-2"><i class="bi bi-hourglass-split fs-5 text-danger"></i></span>
                 </div>
@@ -172,7 +172,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <p class="text-muted small mb-1">Montant Encaissé Total</p>
-                        <h5 class="fw-bold mb-0 text-success">{{ "{:,.2f}".format(total_collected_amount) }} DH</h5>
+                        <h5 class="fw-bold mb-0 text-success">{{ total_collected_amount | format_price }} DH</h5>
                     </div>
                     <span class="badge bg-success bg-opacity-10 p-2"><i class="bi bi-cash-stack fs-5 text-success"></i></span>
                 </div>
@@ -224,11 +224,11 @@
                                 </td>
                                 <td class="text-end pe-3">
                                     {% if t.income > 0 %}
-                                        <span class="text-success fw-bold">+{{ "{:,.0f}".format(t.income) }}</span>
+                                        <span class="text-success fw-bold">+{{ t.income | format_price }}</span>
                                     {% else %}
-                                        <span class="text-danger fw-bold">-{{ "{:,.0f}".format(t.expense) }}</span>
+                                        <span class="text-danger fw-bold">-{{ t.expense | format_price }}</span>
                                     {% endif %}
-                                    <br><small class="text-muted">{{ "{:,.0f}".format(item.balance) }} DH</small>
+                                    <br><small class="text-muted">{{ item.balance | format_price }} DH</small>
                                 </td>
                             </tr>
                             {% endfor %}
