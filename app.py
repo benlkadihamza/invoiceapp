@@ -6,6 +6,7 @@ from flask_wtf.csrf import CSRFProtect
 from models import db, User
 from config import config
 from routes import register_blueprints
+from utils import format_price
 
 
 def _mask_url(url_str):
@@ -48,22 +49,45 @@ def create_app(config_name=None):
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    app.jinja_env.filters['format_price'] = format_price
+    app.jinja_env.globals['format_price'] = format_price
+
     @app.context_processor
     def inject_globals():
         from models import Person, PaymentMethod
         from idempotency import generate_request_token
+        from flask_login import current_user
+        show_dec = False
+        try:
+            if current_user and current_user.is_authenticated:
+                show_dec = getattr(current_user, 'show_decimals', False)
+        except Exception:
+            pass
         return {
             'all_persons': Person.query.order_by(Person.name).all(),
             'all_payment_methods': PaymentMethod.query.order_by(PaymentMethod.name).all(),
             'request_token': generate_request_token,
+            'format_price': format_price,
+            'show_decimals': show_dec,
         }
-
 
     register_blueprints(app)
 
     with app.app_context():
         try:
             db.create_all()
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            if 'users' in inspector.get_table_names():
+                columns = [c['name'] for c in inspector.get_columns('users')]
+                if 'show_decimals' not in columns:
+                    with db.engine.connect() as conn:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN show_decimals BOOLEAN DEFAULT 0"))
+                        conn.commit()
+                if 'show_daily_totals' not in columns:
+                    with db.engine.connect() as conn:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN show_daily_totals BOOLEAN DEFAULT 0"))
+                        conn.commit()
             _seed_defaults()
         except Exception as e:
             print("=" * 60)
