@@ -8,6 +8,7 @@ from fpdf import FPDF
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from models import db, Invoice
+from utils import format_price
 
 invoices_bp = Blueprint('invoices', __name__, url_prefix='/invoices')
 
@@ -305,8 +306,8 @@ def generate_pdf():
             last_page = pdf.page_no()
         pdf.cell(col_w[0], 7, item.get('description', ''), border=1)
         pdf.cell(col_w[1], 7, str(item.get('quantity', 0)), border=1, align="C")
-        pdf.cell(col_w[2], 7, f"{item.get('unit_price', 0):,.2f}".replace(',', ' '), border=1, align="C")
-        pdf.cell(col_w[3], 7, f"{item.get('total', 0):,.2f}".replace(',', ' '), border=1, align="C")
+        pdf.cell(col_w[2], 7, f"{format_price(item.get('unit_price', 0))}", border=1, align="C")
+        pdf.cell(col_w[3], 7, f"{format_price(item.get('total', 0))}", border=1, align="C")
         pdf.ln()
 
     total = data.get('total', 0.0)
@@ -328,12 +329,12 @@ def generate_pdf():
         pdf.ln(10)
 
     if remise > 0 or payer > 0:
-        price_line("Total en DH", f"{total:,.2f} DH".replace(',', ' '))
+        price_line("Total en DH", f"{format_price(total)} DH")
     if remise > 0:
-        price_line("Remise en DH", f"-{remise:,.2f} DH".replace(',', ' '))
+        price_line("Remise en DH", f"-{format_price(remise)} DH")
     if payer > 0:
-        price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
-    price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
+        price_line("Payer en DH", f"-{format_price(payer)} DH")
+    price_line("Total a Payer en DH", f"{format_price(net_total)} DH", val_color=GOLD, bold=True)
 
     name = f"{safe_filename(data.get('client_name', ''))}.pdf"
     buf = BytesIO()
@@ -531,8 +532,8 @@ def download_saved_pdf(invoice_id):
             last_page = pdf.page_no()
         pdf.cell(col_w[0], 7, item.get('description', ''), border=1)
         pdf.cell(col_w[1], 7, str(item.get('quantity', 0)), border=1, align="C")
-        pdf.cell(col_w[2], 7, f"{item.get('unit_price', 0):,.2f}".replace(',', ' '), border=1, align="C")
-        pdf.cell(col_w[3], 7, f"{item.get('total', 0):,.2f}".replace(',', ' '), border=1, align="C")
+        pdf.cell(col_w[2], 7, f"{format_price(item.get('unit_price', 0))}", border=1, align="C")
+        pdf.cell(col_w[3], 7, f"{format_price(item.get('total', 0))}", border=1, align="C")
         pdf.ln()
 
     total = data.get('total', 0.0)
@@ -554,12 +555,12 @@ def download_saved_pdf(invoice_id):
         pdf.ln(10)
 
     if remise > 0 or payer > 0:
-        price_line("Total en DH", f"{total:,.2f} DH".replace(',', ' '))
+        price_line("Total en DH", f"{format_price(total)} DH")
     if remise > 0:
-        price_line("Remise en DH", f"-{remise:,.2f} DH".replace(',', ' '))
+        price_line("Remise en DH", f"-{format_price(remise)} DH")
     if payer > 0:
-        price_line("Payer en DH", f"-{payer:,.2f} DH".replace(',', ' '))
-    price_line("Total a Payer en DH", f"{net_total:,.2f} DH".replace(',', ' '), val_color=GOLD, bold=True)
+        price_line("Payer en DH", f"-{format_price(payer)} DH")
+    price_line("Total a Payer en DH", f"{format_price(net_total)} DH", val_color=GOLD, bold=True)
 
     name = f"{safe_filename(data.get('client_name', ''))}.pdf"
     buf = BytesIO()
