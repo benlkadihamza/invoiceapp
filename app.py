@@ -76,18 +76,29 @@ def create_app(config_name=None):
     with app.app_context():
         try:
             db.create_all()
+        except Exception as e:
+            print("DB CREATE_ALL WARNING:", e)
+
+        try:
             from sqlalchemy import inspect, text
             inspector = inspect(db.engine)
-            if 'users' in inspector.get_table_names():
+            table_names = inspector.get_table_names()
+            if 'users' in table_names:
                 columns = [c['name'] for c in inspector.get_columns('users')]
                 if 'show_decimals' not in columns:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN show_decimals BOOLEAN DEFAULT 0"))
-                        conn.commit()
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE users ADD COLUMN show_decimals BOOLEAN DEFAULT FALSE"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (show_decimals):", ex_col)
+
                 if 'show_daily_totals' not in columns:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN show_daily_totals BOOLEAN DEFAULT 0"))
-                        conn.commit()
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE users ADD COLUMN show_daily_totals BOOLEAN DEFAULT FALSE"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (show_daily_totals):", ex_col)
+
             _seed_defaults()
         except Exception as e:
             print("=" * 60)
