@@ -54,7 +54,7 @@ def create_app(config_name=None):
 
     @app.context_processor
     def inject_globals():
-        from models import Person, PaymentMethod
+        from models import Person, PaymentMethod, TransactionDescription
         from idempotency import generate_request_token
         from flask_login import current_user
         show_dec = False
@@ -66,6 +66,7 @@ def create_app(config_name=None):
         return {
             'all_persons': Person.query.order_by(Person.name).all(),
             'all_payment_methods': PaymentMethod.query.order_by(PaymentMethod.name).all(),
+            'all_descriptions': TransactionDescription.query.order_by(TransactionDescription.name).all(),
             'request_token': generate_request_token,
             'format_price': format_price,
             'show_decimals': show_dec,
@@ -132,16 +133,17 @@ def create_app(config_name=None):
             print("ERROR:\nApplication is still running on SQLite.\n\nDATABASE_URL exists but ProductionConfig was not selected.")
             print("=" * 50 + "\n")
 
-        from sqlalchemy import text
-        try:
-            current_db = db.session.execute(text("SELECT current_database()")).scalar()
-            current_u = db.session.execute(text("SELECT current_user")).scalar()
-            db_ver = db.session.execute(text("SELECT version()")).scalar()
-            print("Current DB:", current_db)
-            print("Current User:", current_u)
-            print("Version:", db_ver)
-        except Exception as e:
-            print("Diagnostic Query Error:", e)
+        if engine_name == 'postgresql':
+            from sqlalchemy import text
+            try:
+                current_db = db.session.execute(text("SELECT current_database()")).scalar()
+                current_u = db.session.execute(text("SELECT current_user")).scalar()
+                db_ver = db.session.execute(text("SELECT version()")).scalar()
+                print("Current DB:", current_db)
+                print("Current User:", current_u)
+                print("Version:", db_ver)
+            except Exception as e:
+                print("Diagnostic Query Error:", e)
 
     @app.route("/debug/database-test")
     def debug_database_test():
@@ -178,7 +180,7 @@ def create_app(config_name=None):
 
 
 def _seed_defaults():
-    from models import PaymentMethod, User
+    from models import PaymentMethod, User, TransactionDescription
 
     if PaymentMethod.query.count() == 0:
         methods = ['Espèces', 'Banque', 'Carte de crédit', 'Virement', 'Paiement mobile']
@@ -189,6 +191,23 @@ def _seed_defaults():
         u = User(username='admin')
         u.set_password('admin123')
         db.session.add(u)
+
+    default_descriptions = [
+        "White sperit",
+        "Transport",
+        "Gasoil",
+        "Manta",
+        "Wifi",
+        "Temu",
+        "Main D'eouver",
+        "verre",
+        "Haut",
+        "Vis",
+    ]
+    for desc_name in default_descriptions:
+        existing = TransactionDescription.query.filter_by(name=desc_name).first()
+        if not existing:
+            db.session.add(TransactionDescription(name=desc_name))
 
     db.session.commit()
 
