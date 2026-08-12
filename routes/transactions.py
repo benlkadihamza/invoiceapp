@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required
-from models import db, Transaction, Person, PaymentMethod
+from models import db, Transaction, Person, PaymentMethod, TransactionDescription
 from forms import TransactionForm
 from werkzeug.utils import secure_filename
 from datetime import date
@@ -102,6 +102,7 @@ def add():
         form.date.data = date.today()
     form.person_id.choices = [(0, '-- Sélectionner une personne --')] + [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
+    descriptions = TransactionDescription.query.order_by(TransactionDescription.name).all()
 
     if form.validate_on_submit():
         try:
@@ -134,7 +135,7 @@ def add():
             flash(f'Erreur lors de l\'ajout de la transaction : {str(e)}', 'danger')
             return redirect(url_for('transactions.index'))
 
-    return render_template('transaction_form.html', form=form, title='Ajouter une transaction')
+    return render_template('transaction_form.html', form=form, title='Ajouter une transaction', descriptions=descriptions)
 
 
 @transactions_bp.route('/transactions/edit/<int:id>', methods=['GET', 'POST'])
@@ -150,6 +151,7 @@ def edit(id):
             form.expense.data = None
     form.person_id.choices = [(0, '-- Sélectionner une personne --')] + [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
+    descriptions = TransactionDescription.query.order_by(TransactionDescription.name).all()
 
     if form.validate_on_submit():
         try:
@@ -178,7 +180,8 @@ def edit(id):
             flash(f'Erreur lors de la modification de la transaction : {str(e)}', 'danger')
             return redirect(url_for('transactions.index'))
 
-    return render_template('transaction_form.html', form=form, title='Modifier la transaction')
+    return render_template('transaction_form.html', form=form, title='Modifier la transaction', descriptions=descriptions)
+
 
 
 @transactions_bp.route('/transactions/duplicate/<int:id>')
