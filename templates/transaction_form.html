@@ -33,7 +33,12 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">{{ form.description.label.text }}</label>
-                            {{ form.description(class="form-control", placeholder="Ex: Achat supermarché") }}
+                            {{ form.description(class="form-control", placeholder="Ex: Achat supermarché", list="descriptions_list", autocomplete="off") }}
+                            <datalist id="descriptions_list">
+                                {% for desc in (descriptions or all_descriptions or []) %}
+                                    <option value="{{ desc.name }}">
+                                {% endfor %}
+                            </datalist>
                         </div>
                         <div class="col-12 col-sm-6">
                             <label for="income" class="form-label fw-semibold text-success">
