@@ -62,7 +62,11 @@ class TransactionDescription(db.Model):
     __tablename__ = 'transaction_descriptions'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), unique=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    position = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 
 
 
