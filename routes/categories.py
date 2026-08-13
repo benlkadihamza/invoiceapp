@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required
 from models import db, PaymentMethod, TransactionDescription
 from idempotency import idempotent_route
@@ -6,11 +6,27 @@ from idempotency import idempotent_route
 categories_bp = Blueprint('categories', __name__)
 
 
+def _normalize_positions():
+    descriptions = TransactionDescription.query.order_by(
+        TransactionDescription.sort_order.asc(),
+        TransactionDescription.id.asc()
+    ).all()
+    changed = False
+    for idx, d in enumerate(descriptions, start=1):
+        if d.sort_order != idx or d.position != idx:
+            d.sort_order = idx
+            d.position = idx
+            changed = True
+    if changed:
+        db.session.commit()
+    return descriptions
+
+
 @categories_bp.route('/categories')
 @login_required
 def index():
     payment_methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
-    descriptions = TransactionDescription.query.order_by(TransactionDescription.name).all()
+    descriptions = _normalize_positions()
     return render_template('categories.html', payment_methods=payment_methods, descriptions=descriptions)
 
 
@@ -69,7 +85,8 @@ def add_description():
         flash('Cette description existe déjà.', 'warning')
         return redirect(url_for('categories.index'))
     try:
-        td = TransactionDescription(name=name)
+        max_order = db.session.query(db.func.max(TransactionDescription.sort_order)).scalar() or 0
+        td = TransactionDescription(name=name, sort_order=max_order + 1, position=max_order + 1)
         db.session.add(td)
         db.session.commit()
         flash('Description ajoutée avec succès.', 'success')
@@ -113,9 +130,46 @@ def delete_description(id):
     try:
         db.session.delete(td)
         db.session.commit()
+        _normalize_positions()
         flash('Description supprimée.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Erreur lors de la suppression de la description : {str(e)}', 'danger')
     return redirect(url_for('categories.index'))
+
+
+@categories_bp.route('/categories/descriptions/reorder', methods=['POST'])
+@login_required
+def reorder_descriptions():
+    data = request.get_json(silent=True) or {}
+    order_list = data.get('order') or []
+    if not order_list or not isinstance(order_list, list):
+        return jsonify({'success': False, 'message': 'Données d\'ordre invalides.'}), 400
+
+    submitted_ids = [item.get('id') for item in order_list if isinstance(item, dict) and 'id' in item]
+    if len(submitted_ids) != len(set(submitted_ids)):
+        return jsonify({'success': False, 'message': 'Identifiants en double dans la demande.'}), 400
+
+    all_existing = TransactionDescription.query.all()
+    existing_ids = {d.id for d in all_existing}
+
+    if not set(submitted_ids).issubset(existing_ids):
+        return jsonify({'success': False, 'message': 'L\'ordre soumis contient des identifiants inconnus.'}), 400
+
+    try:
+        desc_map = {d.id: d for d in all_existing}
+        for item in order_list:
+            desc_id = item.get('id')
+            new_order = int(item.get('sort_order', 0))
+            if desc_id in desc_map:
+                desc_map[desc_id].sort_order = new_order
+                desc_map[desc_id].position = new_order
+        db.session.commit()
+        _normalize_positions()
+        return jsonify({'success': True, 'message': 'Ordre enregistré avec succès.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Erreur lors de l\'enregistrement de l\'ordre : {str(e)}'}), 500
+
+
 
