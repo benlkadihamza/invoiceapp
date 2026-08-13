@@ -66,7 +66,7 @@ def create_app(config_name=None):
         return {
             'all_persons': Person.query.order_by(Person.name).all(),
             'all_payment_methods': PaymentMethod.query.order_by(PaymentMethod.name).all(),
-            'all_descriptions': TransactionDescription.query.order_by(TransactionDescription.name).all(),
+            'all_descriptions': TransactionDescription.query.order_by(TransactionDescription.sort_order.asc(), TransactionDescription.id.asc()).all(),
             'request_token': generate_request_token,
             'format_price': format_price,
             'show_decimals': show_dec,
@@ -99,6 +99,24 @@ def create_app(config_name=None):
                             conn.execute(text("ALTER TABLE users ADD COLUMN show_daily_totals BOOLEAN DEFAULT FALSE"))
                     except Exception as ex_col:
                         print("MIGRATION WARNING (show_daily_totals):", ex_col)
+
+            if 'transaction_descriptions' in table_names:
+                columns = [c['name'] for c in inspector.get_columns('transaction_descriptions')]
+                if 'sort_order' not in columns:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE transaction_descriptions ADD COLUMN sort_order INTEGER DEFAULT 0"))
+                            if 'position' in columns:
+                                conn.execute(text("UPDATE transaction_descriptions SET sort_order = position WHERE sort_order = 0 OR sort_order IS NULL"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (transaction_descriptions.sort_order):", ex_col)
+
+                if 'position' not in columns:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE transaction_descriptions ADD COLUMN position INTEGER DEFAULT 0"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (transaction_descriptions.position):", ex_col)
 
             _seed_defaults()
         except Exception as e:
@@ -204,10 +222,15 @@ def _seed_defaults():
         "Haut",
         "Vis",
     ]
-    for desc_name in default_descriptions:
+    for idx, desc_name in enumerate(default_descriptions, start=1):
         existing = TransactionDescription.query.filter_by(name=desc_name).first()
         if not existing:
-            db.session.add(TransactionDescription(name=desc_name))
+            db.session.add(TransactionDescription(name=desc_name, sort_order=idx, position=idx))
+        else:
+            if not existing.sort_order:
+                existing.sort_order = idx
+            if not existing.position:
+                existing.position = idx
 
     db.session.commit()
 
