@@ -46,8 +46,14 @@
     <!-- Descriptions des transactions -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-transparent py-3">
+            <div class="card-header bg-transparent py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <h6 class="fw-bold mb-0"><i class="bi bi-card-text me-2"></i>Descriptions des transactions</h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="unsaved-badge" class="badge bg-warning text-dark d-none"><i class="bi bi-exclamation-triangle me-1"></i>Modifications non enregistrées</span>
+                    <button id="btn-save-order" type="button" class="btn btn-sm btn-success" disabled>
+                        <i class="bi bi-check-circle me-1"></i>Enregistrer l'ordre
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('categories.add_description') }}" class="input-group mb-3">
@@ -60,18 +66,21 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 36px;"></th>
+                                <th style="width: 40px;">#</th>
                                 <th>Description</th>
-                                <th class="text-end" style="width: 140px;">Actions</th>
+                                <th class="text-end" style="width: 90px;">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="descriptions-sortable">
                             {% for desc in descriptions %}
-                            <tr>
+                            <tr data-id="{{ desc.id }}" class="sortable-item">
+                                <td class="align-middle text-center px-1" style="cursor: grab;">
+                                    <i class="bi bi-grip-vertical text-muted drag-handle fs-5" title="Glisser pour réordonner"></i>
+                                </td>
+                                <td class="text-muted small fw-bold row-number">{{ loop.index }}</td>
                                 <td class="fw-medium">{{ desc.name }}</td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editDescModal{{ desc.id }}" title="Modifier">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
                                     <form method="POST" action="{{ url_for('categories.delete_description', id=desc.id) }}" style="display:inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="request_token" value="{{ request_token() }}">
@@ -84,7 +93,7 @@
                             {% endfor %}
                             {% if not descriptions %}
                             <tr>
-                                <td colspan="2" class="text-center text-muted py-3">Aucune description enregistrée</td>
+                                <td colspan="4" class="text-center text-muted py-3">Aucune description enregistrée</td>
                             </tr>
                             {% endif %}
                         </tbody>
@@ -94,32 +103,4 @@
         </div>
     </div>
 </div>
-
-<!-- Edit Modals for descriptions -->
-{% for desc in descriptions %}
-<div class="modal fade" id="editDescModal{{ desc.id }}" tabindex="-1" aria-labelledby="editDescModalLabel{{ desc.id }}" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('categories.edit_description', id=desc.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="request_token" value="{{ request_token() }}">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold" id="editDescModalLabel{{ desc.id }}">Modifier la description</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Nom de la description</label>
-                        <input type="text" name="name" class="form-control" value="{{ desc.name }}" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endfor %}
 {% endblock %}
