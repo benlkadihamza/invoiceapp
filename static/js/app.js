@@ -34,6 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // General UI Utilities Initialization
     initUIUtilities();
 
+    // Description Drag-and-Drop Initialization
+    if (document.getElementById('descriptions-sortable')) {
+        initDescriptionSortable();
+    }
+
     // Invoice Generator Initialization (only if invoice form exists)
     if (document.getElementById('invoice-form') || document.getElementById('items-body')) {
         initInvoiceApp();
@@ -164,7 +169,7 @@ function initUIUtilities() {
             }
             submitBtn.disabled = true;
             submitBtn.dataset.originalHtml = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement...';
         }
 
         // Disable cancel/secondary buttons to prevent double click
@@ -208,6 +213,111 @@ function initUIUtilities() {
     tooltips.forEach(el => {
         if (!el.closest('.dataTable') && !el.closest('table')) {
             new bootstrap.Tooltip(el, { trigger: 'hover', delay: { show: 500, hide: 100 } });
+        }
+    });
+}
+
+function initDescriptionSortable() {
+    const sortableEl = document.getElementById('descriptions-sortable');
+    const saveBtn = document.getElementById('btn-save-order');
+    const unsavedBadge = document.getElementById('unsaved-badge');
+    if (!sortableEl || !saveBtn) return;
+
+    let hasUnsavedChanges = false;
+
+    function updateRowNumbers() {
+        const rows = sortableEl.querySelectorAll('.sortable-item');
+        rows.forEach((row, index) => {
+            const numEl = row.querySelector('.row-number');
+            if (numEl) numEl.textContent = index + 1;
+        });
+    }
+
+    function setUnsaved(state) {
+        hasUnsavedChanges = state;
+        if (state) {
+            saveBtn.removeAttribute('disabled');
+            unsavedBadge?.classList.remove('d-none');
+        } else {
+            saveBtn.setAttribute('disabled', 'true');
+            unsavedBadge?.classList.add('d-none');
+        }
+    }
+
+    window.addEventListener('beforeunload', (e) => {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = 'Vous avez des modifications non enregistrées. Voulez-vous quitter cette page ?';
+            return e.returnValue;
+        }
+    });
+
+    if (typeof Sortable !== 'undefined') {
+        new Sortable(sortableEl, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'table-active',
+            chosenClass: 'table-warning',
+            dragClass: 'shadow-lg',
+            delay: 150,
+            delayOnTouchOnly: true,
+            touchStartThreshold: 5,
+            onEnd: function () {
+                updateRowNumbers();
+                setUnsaved(true);
+            }
+        });
+    }
+
+    saveBtn.addEventListener('click', async function () {
+        if (!hasUnsavedChanges) return;
+
+        const rows = sortableEl.querySelectorAll('.sortable-item');
+        const orderPayload = [];
+        rows.forEach((row, index) => {
+            const id = parseInt(row.getAttribute('data-id'), 10);
+            if (id) {
+                orderPayload.push({ id: id, sort_order: index + 1 });
+            }
+        });
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Enregistrement...';
+
+        try {
+            const response = await fetch('/categories/descriptions/reorder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ order: orderPayload })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                setUnsaved(false);
+                saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enregistrer l\'ordre';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: result.message || 'Ordre enregistré avec succès.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    alert(result.message || 'Ordre enregistré avec succès.');
+                }
+            } else {
+                setUnsaved(true);
+                saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enregistrer l\'ordre';
+                alert(result.message || 'Erreur lors de l\'enregistrement de l\'ordre.');
+            }
+        } catch (err) {
+            setUnsaved(true);
+            saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enregistrer l\'ordre';
+            alert('Erreur réseau lors de la communication avec le serveur.');
         }
     });
 }
