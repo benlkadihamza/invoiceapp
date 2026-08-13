@@ -102,7 +102,7 @@ def add():
         form.date.data = date.today()
     form.person_id.choices = [(0, '-- Sélectionner une personne --')] + [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
-    descriptions = TransactionDescription.query.order_by(TransactionDescription.name).all()
+    descriptions = TransactionDescription.query.order_by(TransactionDescription.position.asc(), TransactionDescription.name.asc(), TransactionDescription.id.asc()).all()
 
     if form.validate_on_submit():
         try:
@@ -151,7 +151,7 @@ def edit(id):
             form.expense.data = None
     form.person_id.choices = [(0, '-- Sélectionner une personne --')] + [(p.id, p.name) for p in Person.query.order_by(Person.name).all()]
     form.payment_method_id.choices = [(0, '-- Aucun --')] + [(pm.id, pm.name) for pm in PaymentMethod.query.order_by(PaymentMethod.name).all()]
-    descriptions = TransactionDescription.query.order_by(TransactionDescription.name).all()
+    descriptions = TransactionDescription.query.order_by(TransactionDescription.position.asc(), TransactionDescription.name.asc(), TransactionDescription.id.asc()).all()
 
     if form.validate_on_submit():
         try:
