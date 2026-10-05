@@ -1240,7 +1240,7 @@ async function handleShareWhatsApp() {
     if (canShare) {
         try {
             await navigator.share({
-                files: [file],
+                files: [file]
             });
             if (invoiceShareState !== state) return;
             closeInvoiceShareModal(`Facture partagée avec succès : ${file.name}`);
