@@ -1241,8 +1241,6 @@ async function handleShareWhatsApp() {
         try {
             await navigator.share({
                 files: [file],
-                title: 'Facture',
-                text: 'Voici votre facture.'
             });
             if (invoiceShareState !== state) return;
             closeInvoiceShareModal(`Facture partagée avec succès : ${file.name}`);
