@@ -752,6 +752,7 @@ function getFormData() {
         date: document.getElementById('date')?.value || new Date().toISOString().split('T')[0],
         client_name: document.getElementById('client_name')?.value.trim() || 'Client',
         client_address: document.getElementById('client_address')?.value.trim() || '',
+        client_phone: document.getElementById('client_phone')?.value.trim() || '',
         items: items,
         total: baseTotal,
         remise_enabled: remiseEnabled,
@@ -781,12 +782,14 @@ async function loadInvoiceForEdit(invoiceId) {
         const dateEl = document.getElementById('date');
         const clientName = document.getElementById('client_name');
         const clientAddr = document.getElementById('client_address');
+        const clientPhone = document.getElementById('client_phone');
         const showNumToggle = document.getElementById('show-facture-num');
 
         if (invNum) invNum.value = inv.invoice_num || '';
         if (dateEl) dateEl.value = inv.date || '';
         if (clientName) clientName.value = inv.client_name || '';
         if (clientAddr) clientAddr.value = inv.client_address || '';
+        if (clientPhone) clientPhone.value = inv.client_phone || '';
         if (showNumToggle) showNumToggle.checked = !!inv.show_facture_num;
 
         const tbody = document.getElementById('items-body');
@@ -1413,12 +1416,14 @@ function resetFormToNewInvoice() {
     const dateEl = document.getElementById('date');
     const clientName = document.getElementById('client_name');
     const clientAddr = document.getElementById('client_address');
+    const clientPhone = document.getElementById('client_phone');
     const showNumToggle = document.getElementById('show-facture-num');
 
     if (invNum) invNum.value = '001';
     if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
     if (clientName) clientName.value = '';
     if (clientAddr) clientAddr.value = '';
+    if (clientPhone) clientPhone.value = '';
     if (showNumToggle) showNumToggle.checked = false;
 
     const tbody = document.getElementById('items-body');
