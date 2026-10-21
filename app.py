@@ -6,7 +6,7 @@ from flask_wtf.csrf import CSRFProtect
 from models import db, User
 from config import config
 from routes import register_blueprints
-from utils import format_price
+from utils import format_price, waze_url
 
 
 def _mask_url(url_str):
@@ -51,6 +51,8 @@ def create_app(config_name=None):
 
     app.jinja_env.filters['format_price'] = format_price
     app.jinja_env.globals['format_price'] = format_price
+    app.jinja_env.filters['waze_url'] = waze_url
+    app.jinja_env.globals['waze_url'] = waze_url
 
     @app.context_processor
     def inject_globals():
@@ -133,6 +135,13 @@ def create_app(config_name=None):
                             conn.execute(text("ALTER TABLE invoices ADD COLUMN client_phone VARCHAR DEFAULT ''"))
                     except Exception as ex_col:
                         print("MIGRATION WARNING (invoices.client_phone):", ex_col)
+
+                if 'client_address_details' not in columns:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE invoices ADD COLUMN client_address_details VARCHAR DEFAULT ''"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (invoices.client_address_details):", ex_col)
 
             _seed_defaults()
         except Exception as e:
