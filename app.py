@@ -118,6 +118,22 @@ def create_app(config_name=None):
                     except Exception as ex_col:
                         print("MIGRATION WARNING (transaction_descriptions.position):", ex_col)
 
+            if 'invoices' in table_names:
+                columns = [c['name'] for c in inspector.get_columns('invoices')]
+                if 'client_address' not in columns:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE invoices ADD COLUMN client_address VARCHAR DEFAULT ''"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (invoices.client_address):", ex_col)
+
+                if 'client_phone' not in columns:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE invoices ADD COLUMN client_phone VARCHAR DEFAULT ''"))
+                    except Exception as ex_col:
+                        print("MIGRATION WARNING (invoices.client_phone):", ex_col)
+
             _seed_defaults()
         except Exception as e:
             print("=" * 60)
