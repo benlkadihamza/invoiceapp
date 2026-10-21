@@ -329,6 +329,7 @@ function getFormData() {
         date: document.getElementById('date').value,
         client_name: document.getElementById('client_name').value.trim() || 'Client',
         client_address: document.getElementById('client_address')?.value.trim() || '',
+        client_address_details: document.getElementById('client_address_details')?.value.trim() || '',
         client_phone: document.getElementById('client_phone')?.value.trim() || '',
         items: items,
         total: baseTotal,
@@ -367,6 +368,8 @@ async function loadInvoiceForEdit(invoiceId) {
         document.getElementById('date').value           = inv.date           || '';
         document.getElementById('client_name').value    = inv.client_name    || '';
         document.getElementById('client_address').value = inv.client_address || '';
+        const addrDetailsEl = document.getElementById('client_address_details');
+        if (addrDetailsEl) addrDetailsEl.value = inv.client_address_details || '';
         const phoneEl = document.getElementById('client_phone');
         if (phoneEl) phoneEl.value = inv.client_phone || '';
 
@@ -557,6 +560,8 @@ function resetFormToNewInvoice() {
     document.getElementById('date').value           = new Date().toISOString().split('T')[0];
     document.getElementById('client_name').value    = '';
     document.getElementById('client_address').value = '';
+    const addrDetailsEl = document.getElementById('client_address_details');
+    if (addrDetailsEl) addrDetailsEl.value = '';
     const phoneEl = document.getElementById('client_phone');
     if (phoneEl) phoneEl.value = '';
     document.getElementById('show-facture-num').checked = false;
