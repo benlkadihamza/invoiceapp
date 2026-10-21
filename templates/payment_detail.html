@@ -32,6 +32,12 @@
             <div class="col-md-3 col-6">
                 <small class="text-muted d-block">Client</small>
                 <span class="fw-bold text-dark fs-6">{{ payment.customer_name }}</span>
+                {% if invoice and invoice.client_phone %}
+                    <div><small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ invoice.client_phone }}</small></div>
+                {% endif %}
+                {% if invoice and invoice.client_address %}
+                    <div><small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ invoice.client_address }}</small></div>
+                {% endif %}
             </div>
             <div class="col-md-3 col-6">
                 <small class="text-muted d-block">N° Facture</small>
