@@ -46,7 +46,16 @@
                     </div>
                     <div class="form-group">
                         <label for="client_address">Adresse du client</label>
-                        <input type="text" id="client_address" name="client_address" placeholder="Adresse...">
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="text" id="client_address" name="client_address" placeholder="Détection GPS ou saisie manuelle..." autocomplete="street-address">
+                            <button type="button" id="btn-detect-gps" class="btn btn-outline-primary px-3" title="Détecter la position GPS" style="min-height: 42px; flex-shrink: 0;">
+                                <i class="bi bi-geo-alt-fill"></i>
+                            </button>
+                        </div>
+                        <small id="gps-status" class="mt-1 d-none" style="font-size: 0.78rem;"></small>
+                        <div class="mt-2">
+                            <input type="text" id="client_address_details" name="client_address_details" placeholder="Complément d'adresse (N° maison, étage, repère...)" autocomplete="address-line2">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="client_phone">Téléphone du client</label>
