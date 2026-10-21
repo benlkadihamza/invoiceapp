@@ -76,6 +76,7 @@ def save_invoice_data(data):
     date_val = data.get("date", "")
     client_name = data.get("client_name", "")
     client_address = data.get("client_address", "")
+    client_address_details = data.get("client_address_details", "")
     client_phone = data.get("client_phone", "")
     total = data.get("total", 0.0)
     remise = data.get("remise", 0.0)
@@ -93,6 +94,7 @@ def save_invoice_data(data):
             invoice.date = date_val
             invoice.client_name = client_name
             invoice.client_address = client_address
+            invoice.client_address_details = client_address_details
             invoice.client_phone = client_phone
             invoice.total = total
             invoice.remise = remise
@@ -107,6 +109,7 @@ def save_invoice_data(data):
             date=date_val,
             client_name=client_name,
             client_address=client_address,
+            client_address_details=client_address_details,
             client_phone=client_phone,
             total=total,
             remise=remise,
@@ -153,6 +156,7 @@ def get_invoice_by_id(invoice_id):
         "date": invoice.date,
         "client_name": invoice.client_name,
         "client_address": invoice.client_address or "",
+        "client_address_details": getattr(invoice, 'client_address_details', '') or "",
         "client_phone": invoice.client_phone or "",
         "total": invoice.total,
         "remise": invoice.remise,
@@ -264,6 +268,7 @@ def list_invoices():
                 "date": inv.date,
                 "client_name": inv.client_name,
                 "client_address": inv.client_address or "",
+                "client_address_details": getattr(inv, 'client_address_details', '') or "",
                 "client_phone": inv.client_phone or "",
                 "net_total": inv.net_total,
                 "created_at": inv.created_at,
