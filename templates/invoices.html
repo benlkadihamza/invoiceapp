@@ -40,6 +40,12 @@
                             <td class="d-none d-md-table-cell">{{ invoice.invoice_num }}</td>
                             <td>
                                 <div><strong>{{ invoice.client_name }}</strong></div>
+                                {% if invoice.client_phone %}
+                                    <div><small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ invoice.client_phone }}</small></div>
+                                {% endif %}
+                                {% if invoice.client_address %}
+                                    <div><small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ invoice.client_address }}</small></div>
+                                {% endif %}
                                 <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>{{ invoice.date }}</small>
                             </td>
                             <td><span class="fw-bold">{{ invoice.net_total | format_price }} DH</span></td>
