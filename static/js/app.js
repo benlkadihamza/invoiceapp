@@ -15,6 +15,163 @@ let focusedDesc = null;
 let acDropdown = null;
 let acTarget = null;
 let currentInvoiceId = null;
+let isAddressManuallyEdited = false;
+
+function buildWazeUrl(address) {
+    const addr = String(address || '').trim();
+    if (!addr) return '#';
+    const coordMatch = addr.match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+    if (coordMatch) {
+        return `https://waze.com/ul?ll=${coordMatch[1]},${coordMatch[2]}&navigate=yes`;
+    }
+    return `https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
+}
+
+function openInWaze(el, event) {
+    if (!el) return;
+    const addr = el.getAttribute('data-waze-address') || el.textContent.trim();
+    const url = buildWazeUrl(addr);
+    el.href = url;
+}
+
+function setGpsStatus(html, colorClass = 'text-muted') {
+    const el = document.getElementById('gps-status');
+    if (!el) return;
+    if (!html) {
+        el.className = 'mt-1 d-none';
+        el.innerHTML = '';
+        return;
+    }
+    el.className = `mt-1 d-block ${colorClass}`;
+    el.innerHTML = html;
+}
+
+let gpsWatchId = null;
+
+function detectClientAddressGPS({ force = false } = {}) {
+    const addrInput = document.getElementById('client_address');
+    const gpsBtn = document.getElementById('btn-detect-gps');
+    if (!addrInput) return;
+
+    if (!force && (isAddressManuallyEdited || addrInput.value.trim() !== '')) {
+        return;
+    }
+
+    const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+    const isSecure = window.isSecureContext || window.location.protocol === 'https:' || isLocalhost;
+
+    if (!isSecure) {
+        const httpsUrl = `https://${window.location.hostname}:5443${window.location.pathname}${window.location.search}`;
+        addrInput.placeholder = "Saisir l'adresse manuellement...";
+        setGpsStatus(
+            `<i class="bi bi-shield-lock-fill me-1"></i>Sur iPhone, le GPS nécessite HTTPS. <a href="${httpsUrl}" class="fw-bold text-decoration-underline">Cliquez ici pour ouvrir en HTTPS</a> ou saisissez l'adresse manuellement.`,
+            'text-warning'
+        );
+        if (force) addrInput.focus();
+        return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        addrInput.placeholder = "Saisir l'adresse manuellement...";
+        setGpsStatus('<i class="bi bi-pencil-square me-1"></i>GPS non supporté — veuillez saisir l\'adresse manuellement.', 'text-muted');
+        if (force) addrInput.focus();
+        return;
+    }
+
+    if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+    }
+
+    if (gpsBtn) {
+        gpsBtn.disabled = true;
+        gpsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+    }
+    setGpsStatus('<i class="bi bi-crosshair me-1"></i>Calibrage GPS haute précision en cours...', 'text-primary');
+
+    let bestPosition = null;
+    let settled = false;
+
+    const finalizePosition = (pos) => {
+        if (settled) return;
+        settled = true;
+        if (gpsWatchId !== null) {
+            navigator.geolocation.clearWatch(gpsWatchId);
+            gpsWatchId = null;
+        }
+
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const acc = Math.round(pos.coords.accuracy || 0);
+        const exactCoords = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+        if (gpsBtn) {
+            gpsBtn.disabled = false;
+            gpsBtn.innerHTML = '<i class="bi bi-geo-alt-fill"></i>';
+        }
+
+        if (force || (!isAddressManuallyEdited && !addrInput.value.trim())) {
+            addrInput.value = exactCoords;
+            isAddressManuallyEdited = false;
+            const accBadge = acc > 0 ? ` (±${acc}m)` : '';
+            setGpsStatus(`<i class="bi bi-check-circle-fill me-1"></i>Position GPS exacte détectée : ${exactCoords}${accBadge}.`, 'text-success');
+        }
+    };
+
+    // High-accuracy GPS watch: waits up to 5s for satellite lock (<= 15m accuracy),
+    // or uses the most accurate reading collected during that window.
+    const watchTimer = setTimeout(() => {
+        if (!settled && bestPosition) {
+            finalizePosition(bestPosition);
+        }
+    }, 4500);
+
+    gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+            if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+                bestPosition = pos;
+            }
+            const acc = Math.round(pos.coords.accuracy || 999);
+            setGpsStatus(`<i class="bi bi-crosshair me-1"></i>Affinage du signal GPS (±${acc}m)...`, 'text-primary');
+            // If accuracy is already pinpoint (<= 15 meters), lock in immediately
+            if (acc <= 15) {
+                clearTimeout(watchTimer);
+                finalizePosition(pos);
+            }
+        },
+        (err) => {
+            clearTimeout(watchTimer);
+            if (settled) return;
+            if (bestPosition) {
+                finalizePosition(bestPosition);
+                return;
+            }
+            settled = true;
+            if (gpsWatchId !== null) {
+                navigator.geolocation.clearWatch(gpsWatchId);
+                gpsWatchId = null;
+            }
+            if (gpsBtn) {
+                gpsBtn.disabled = false;
+                gpsBtn.innerHTML = '<i class="bi bi-geo-alt-fill"></i>';
+            }
+            addrInput.placeholder = "Saisir l'adresse manuellement...";
+            if (err && err.code === 1) {
+                setGpsStatus('<i class="bi bi-exclamation-circle me-1"></i>Autorisation GPS refusée sur iPhone (Réglages > Confidentialité > Service de localisation > Safari) — ou saisissez manuellement.', 'text-warning');
+            } else {
+                setGpsStatus('<i class="bi bi-pencil-square me-1"></i>GPS indisponible — veuillez saisir l\'adresse manuellement.', 'text-warning');
+            }
+            if (force) {
+                addrInput.focus();
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
 
 //==============================================================================
 // 2. INITIALIZATION & THEME MANAGEMENT
@@ -698,7 +855,22 @@ function initInvoiceApp() {
     const editId = params.get('edit');
     if (editId) {
         loadInvoiceForEdit(parseInt(editId, 10));
+    } else {
+        detectClientAddressGPS({ force: false });
     }
+
+    // GPS Detection & Manual Address Fallback setup
+    document.getElementById('client_address')?.addEventListener('input', () => {
+        isAddressManuallyEdited = true;
+        const gpsStatus = document.getElementById('gps-status');
+        if (gpsStatus) {
+            gpsStatus.className = 'mt-1 d-none';
+            gpsStatus.innerHTML = '';
+        }
+    });
+    document.getElementById('btn-detect-gps')?.addEventListener('click', () => {
+        detectClientAddressGPS({ force: true });
+    });
 
     // Modal & Action Buttons setup
     document.getElementById('btn-preview')?.addEventListener('click', handleInvoicePreview);
@@ -752,6 +924,7 @@ function getFormData() {
         date: document.getElementById('date')?.value || new Date().toISOString().split('T')[0],
         client_name: document.getElementById('client_name')?.value.trim() || 'Client',
         client_address: document.getElementById('client_address')?.value.trim() || '',
+        client_address_details: document.getElementById('client_address_details')?.value.trim() || '',
         client_phone: document.getElementById('client_phone')?.value.trim() || '',
         items: items,
         total: baseTotal,
@@ -782,6 +955,7 @@ async function loadInvoiceForEdit(invoiceId) {
         const dateEl = document.getElementById('date');
         const clientName = document.getElementById('client_name');
         const clientAddr = document.getElementById('client_address');
+        const clientAddrDetails = document.getElementById('client_address_details');
         const clientPhone = document.getElementById('client_phone');
         const showNumToggle = document.getElementById('show-facture-num');
 
@@ -789,6 +963,7 @@ async function loadInvoiceForEdit(invoiceId) {
         if (dateEl) dateEl.value = inv.date || '';
         if (clientName) clientName.value = inv.client_name || '';
         if (clientAddr) clientAddr.value = inv.client_address || '';
+        if (clientAddrDetails) clientAddrDetails.value = inv.client_address_details || '';
         if (clientPhone) clientPhone.value = inv.client_phone || '';
         if (showNumToggle) showNumToggle.checked = !!inv.show_facture_num;
 
@@ -1416,6 +1591,7 @@ function resetFormToNewInvoice() {
     const dateEl = document.getElementById('date');
     const clientName = document.getElementById('client_name');
     const clientAddr = document.getElementById('client_address');
+    const clientAddrDetails = document.getElementById('client_address_details');
     const clientPhone = document.getElementById('client_phone');
     const showNumToggle = document.getElementById('show-facture-num');
 
@@ -1423,8 +1599,11 @@ function resetFormToNewInvoice() {
     if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
     if (clientName) clientName.value = '';
     if (clientAddr) clientAddr.value = '';
+    if (clientAddrDetails) clientAddrDetails.value = '';
     if (clientPhone) clientPhone.value = '';
     if (showNumToggle) showNumToggle.checked = false;
+    isAddressManuallyEdited = false;
+    detectClientAddressGPS({ force: false });
 
     const tbody = document.getElementById('items-body');
     if (tbody) {
