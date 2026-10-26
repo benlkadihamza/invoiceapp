@@ -32,9 +32,24 @@ def create_app(config_name=None):
     masked_uri = _mask_url(uri)
     engine_name = 'postgresql' if uri.startswith('postgresql') else ('sqlite' if uri.startswith('sqlite') else 'unknown')
     
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
-    os.makedirs(os.path.join(app.root_path, 'database'), exist_ok=True)
+    import tempfile
+
+if os.environ.get("VERCEL"):
+    temp_dir = tempfile.gettempdir()
+
+    app.config['UPLOAD_FOLDER'] = os.path.join(
+        temp_dir, 'uploads'
+    )
+    app.config['REPORT_FOLDER'] = os.path.join(
+        temp_dir, 'reports'
+    )
+    database_dir = os.path.join(temp_dir, 'database')
+else:
+    database_dir = os.path.join(app.root_path, 'database')
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
+os.makedirs(database_dir, exist_ok=True)
 
     db.init_app(app)
     csrf = CSRFProtect(app)
