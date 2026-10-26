@@ -31,10 +31,7 @@ def create_app(config_name=None):
     uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     masked_uri = _mask_url(uri)
     engine_name = 'postgresql' if uri.startswith('postgresql') else ('sqlite' if uri.startswith('sqlite') else 'unknown')
-    if os.environ.get("VERCEL"):
-    app.config["UPLOAD_FOLDER"] = os.path.join(
-        tempfile.gettempdir(), "uploads"
-    )
+    
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
     os.makedirs(os.path.join(app.root_path, 'database'), exist_ok=True)
