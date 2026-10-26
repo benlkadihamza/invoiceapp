@@ -33,13 +33,6 @@ def create_app(config_name=None):
     masked_uri = _mask_url(uri)
     engine_name = 'postgresql' if uri.startswith('postgresql') else ('sqlite' if uri.startswith('sqlite') else 'unknown')
     
-    if os.environ.get("VERCEL"):
-       app.config["UPLOAD_FOLDER"] = "/tmp/uploads"
-       app.config["REPORT_FOLDER"] = "/tmp/reports"
-       database_dir = "/tmp/database"
-    else:
-       database_dir = os.path.join(app.root_path, "database")
-
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["REPORT_FOLDER"], exist_ok=True)
     os.makedirs(database_dir, exist_ok=True)
