@@ -33,9 +33,10 @@ def create_app(config_name=None):
     masked_uri = _mask_url(uri)
     engine_name = 'postgresql' if uri.startswith('postgresql') else ('sqlite' if uri.startswith('sqlite') else 'unknown')
     
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    os.makedirs(app.config["REPORT_FOLDER"], exist_ok=True)
-    if uri.startswith('sqlite:///'):
+    if os.environ.get("CLOUDFLARE_WORKER") != "1":
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+        os.makedirs(app.config["REPORT_FOLDER"], exist_ok=True)
+    if os.environ.get('CLOUDFLARE_WORKER') != '1' and uri.startswith('sqlite:///'):
         os.makedirs(os.path.dirname(uri[len('sqlite:///'):]), exist_ok=True)
 
     db.init_app(app)
