@@ -33,9 +33,11 @@ def create_app(config_name=None):
     masked_uri = _mask_url(uri)
     engine_name = 'postgresql' if uri.startswith('postgresql') else ('sqlite' if uri.startswith('sqlite') else 'unknown')
     
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    os.makedirs(app.config["REPORT_FOLDER"], exist_ok=True)
-    os.makedirs(database_dir, exist_ok=True)
+    if os.environ.get("CLOUDFLARE_WORKER") != "1":
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+        os.makedirs(app.config["REPORT_FOLDER"], exist_ok=True)
+    if os.environ.get('CLOUDFLARE_WORKER') != '1' and uri.startswith('sqlite:///'):
+        os.makedirs(os.path.dirname(uri[len('sqlite:///'):]), exist_ok=True)
 
     db.init_app(app)
     csrf = CSRFProtect(app)
@@ -77,7 +79,8 @@ def create_app(config_name=None):
 
     register_blueprints(app)
 
-    with app.app_context():
+    if os.environ.get("RUN_DB_BOOTSTRAP") == "1":
+      with app.app_context():
         try:
             db.create_all()
         except Exception as e:
@@ -188,37 +191,6 @@ def create_app(config_name=None):
                 print("Version:", db_ver)
             except Exception as e:
                 print("Diagnostic Query Error:", e)
-
-    @app.route("/debug/database-test")
-    def debug_database_test():
-        from models import Person
-        from sqlalchemy import text
-        import uuid
-
-        test_name = f"DEBUG_PERSON_{uuid.uuid4().hex[:6]}"
-        p = Person(name=test_name, phone="0000000000", email="debug@test.com")
-        db.session.add(p)
-        db.session.commit()
-
-        inserted_p = Person.query.filter_by(name=test_name).first()
-
-        current_db = "unknown"
-        current_u = "unknown"
-        try:
-            current_db = db.session.execute(text("SELECT current_database()")).scalar()
-            current_u = db.session.execute(text("SELECT current_user")).scalar()
-        except Exception:
-            pass
-
-        eng = 'postgresql' if app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('postgresql') else 'sqlite'
-
-        return {
-            "database": current_db,
-            "user": current_u,
-            "engine": eng,
-            "inserted_id": inserted_p.id if inserted_p else None,
-            "success": True
-        }
 
     return app
 
