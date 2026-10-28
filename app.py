@@ -35,7 +35,8 @@ def create_app(config_name=None):
     
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["REPORT_FOLDER"], exist_ok=True)
-    os.makedirs(database_dir, exist_ok=True)
+    if uri.startswith('sqlite:///'):
+        os.makedirs(os.path.dirname(uri[len('sqlite:///'):]), exist_ok=True)
 
     db.init_app(app)
     csrf = CSRFProtect(app)
